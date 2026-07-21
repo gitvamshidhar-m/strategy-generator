@@ -348,9 +348,16 @@ export default function Home() {
                           <button type="button" onClick={() => document.getElementById(`stage-${stage.stage}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition"><ChevronRight size={16} className="text-gray-400" /></button>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-2">{stage.goal}</p>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {stage.tactics?.map((t: any) => (
-                            <span key={t.id} onClick={() => setDrilldown(t)} className="text-xs bg-white dark:bg-gray-700 px-2 py-1 rounded-full border dark:border-gray-600 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-700 transition">{t.title}</span>
+                            <div key={t.id} onClick={() => setDrilldown(t)} className="bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg px-3 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-700 transition flex-1 min-w-[180px] max-w-full">
+                              <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{t.title}</div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                {t.channel && <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-600 px-1.5 py-0.5 rounded">{t.channel}</span>}
+                                <ImpactBadge impact={t.impact} />
+                                <EffortBadge effort={t.effort} />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
