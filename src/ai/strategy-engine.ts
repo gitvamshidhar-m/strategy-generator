@@ -161,24 +161,26 @@ Regenerate stage: ${stageToRegen}`
 }
 
 export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, message: string): Promise<string> {
-  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured")
+  try {
+    const details = (strategy.funnel || []).map((s: any) =>
+      `${s.label}: ${(s.tactics || []).map((t: any) => t.title).join(", ")}`
+    ).join("\n")
 
-  const details = (strategy.funnel || []).map((s: any) =>
-    `${s.label}: ${(s.tactics || []).map((t: any) => t.title).join(", ")}`
-  ).join("\n")
+    const system = `You are a strategy consultant. The user has a marketing strategy and is asking about it.
+  Return ONLY valid JSON with one field "reply" containing your answer (2-3 sentences).`
 
-  const system = `You are a strategy consultant. The user has a marketing strategy and is asking about it.
-Return ONLY valid JSON with one field "reply" containing your answer (2-3 sentences).`
+    const user = `Strategy for ${form.industry} ($${form.budget}/mo, ${form.goal})
+  Channels: ${(strategy.channels || []).map((c: any) => `${c.channel} ${c.budgetAllocation}%`).join(", ")}
+  ${details}
 
-  const user = `Strategy for ${form.industry} ($${form.budget}/mo, ${form.goal})
-Channels: ${(strategy.channels || []).map((c: any) => `${c.channel} ${c.budgetAllocation}%`).join(", ")}
-${details}
+  User question: ${message}`
 
-User question: ${message}`
-
-  const content = await groqChat(system, user, 0.5)
-  const parsed = JSON.parse(content)
-  return parsed.reply || parsed.response || content
+    const content = await groqChat(system, user, 0.5)
+    const parsed = JSON.parse(content)
+    return parsed.reply || parsed.response || content
+  } catch (err: any) {
+    return `⚠️ ${err.message || "Request failed"}. Please try a simpler question.`
+  }
 }
 
 export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
