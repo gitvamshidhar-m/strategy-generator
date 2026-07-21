@@ -350,7 +350,7 @@ export default function Home() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-2">{stage.goal}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {stage.tactics?.map((t: any) => (
-                            <span key={t.id} className="text-xs bg-white dark:bg-gray-700 px-2 py-1 rounded-full border dark:border-gray-600 text-gray-700 dark:text-gray-300">{t.title}</span>
+                            <span key={t.id} onClick={() => setDrilldown(t)} className="text-xs bg-white dark:bg-gray-700 px-2 py-1 rounded-full border dark:border-gray-600 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-700 transition">{t.title}</span>
                           ))}
                         </div>
                       </div>
