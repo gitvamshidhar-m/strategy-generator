@@ -2,12 +2,14 @@
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-async function groqChat(system: string, user: string, temp = 0.7): Promise<string> {
+async function groqChat(system: string, user: string, temp = 0.7, jsonMode = true): Promise<string> {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY environment variable is not set")
+  const body: any = { model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: temp }
+  if (jsonMode) body.response_format = { type: "json_object" }
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: temp, response_format: { type: "json_object" } }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Groq API error: ${res.status} ${await res.text()}`)
   const data = await res.json()
@@ -167,7 +169,7 @@ Estimated ROI: ${strategy.estimatedROI}%`
 
   const system = `You are an AI strategy consultant. You have access to the user's generated strategy. Answer their questions helpfully. Be specific and reference their strategy data. Keep answers concise but thorough. If they ask about executing a tactic, provide actionable advice. If they ask "what if" scenarios, explain the tradeoffs.`
 
-  const content = await groqChat(system, `${context}\n\nUser question: ${message}`, 0.5)
+  const content = await groqChat(system, `${context}\n\nUser question: ${message}`, 0.5, false)
   return content
 }
 
