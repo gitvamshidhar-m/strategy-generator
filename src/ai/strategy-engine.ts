@@ -163,26 +163,22 @@ Regenerate stage: ${stageToRegen}`
 export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, message: string): Promise<string> {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured")
 
-  const context = `Strategy for ${form.industry} ($${form.budget}/mo, ${form.goal})
-Overview: ${strategy.reasoning || "N/A"}
-Channels: ${(strategy.channels || []).map((c: any) => `${c.channel} (${c.budgetAllocation}%)`).join(", ") || "N/A"}
-Tactics: ${strategy.tactics?.length || 0}, ROI: ${strategy.estimatedROI || 0}%`
+  const details = (strategy.funnel || []).map((s: any) =>
+    `${s.label}: ${(s.tactics || []).map((t: any) => t.title).join(", ")}`
+  ).join("\n")
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: `You are a strategy consultant. Answer the user's question about their marketing strategy using the context provided. Be specific and helpful. Keep answers to 2-3 sentences.` },
-        { role: "user", content: `${context}\n\nQuestion: ${message}\n\nAnswer concisely:` },
-      ],
-      temperature: 0.5,
-    }),
-  })
-  if (!res.ok) throw new Error(`Groq API error: ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content || "No response generated"
+  const system = `You are a strategy consultant. The user has a marketing strategy and is asking about it.
+Return ONLY valid JSON with one field "reply" containing your answer (2-3 sentences).`
+
+  const user = `Strategy for ${form.industry} ($${form.budget}/mo, ${form.goal})
+Channels: ${(strategy.channels || []).map((c: any) => `${c.channel} ${c.budgetAllocation}%`).join(", ")}
+${details}
+
+User question: ${message}`
+
+  const content = await groqChat(system, user, 0.5)
+  const parsed = JSON.parse(content)
+  return parsed.reply || parsed.response || content
 }
 
 export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
