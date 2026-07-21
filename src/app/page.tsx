@@ -550,7 +550,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-1.5 mt-1">
               {form.selectedChannels.map((v) => {
                 const ch = channels.find((c) => c.value === v)
-                return ch ? <span key={v} className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">{ch.label} ✕</span> : null
+                return ch ? <button key={v} type="button" onClick={() => toggleChannel(v)} className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800/50 transition">{ch.label} ✕</button> : null
               })}
             </div>
             {error && <p className="text-red-500 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 p-3 rounded-xl">{error}</p>}
