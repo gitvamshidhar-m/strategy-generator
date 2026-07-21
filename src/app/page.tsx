@@ -512,11 +512,11 @@ export default function Home() {
                         <div className="flex items-center justify-between mt-2">
                           <div className="text-center flex-1">
                             <p className="text-xs text-gray-400 dark:text-gray-500">You</p>
-                            <p className={`text-lg font-bold ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{b.yourValue}{b.unit}</p>
+                            <p className={`text-lg font-bold ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{b.yourValue}{!b.yourValue?.includes(b.unit) ? b.unit : ""}</p>
                           </div>
                           <div className="text-center flex-1">
                             <p className="text-xs text-gray-400 dark:text-gray-500">Industry Avg</p>
-                            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{b.industryAvg}{b.unit}</p>
+                            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{b.industryAvg}{!b.industryAvg?.includes(b.unit) ? b.unit : ""}</p>
                           </div>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2 overflow-hidden">

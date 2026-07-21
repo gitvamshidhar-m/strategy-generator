@@ -98,7 +98,7 @@ Return ONLY valid JSON with this structure:
   "timeline": {"phases": [{"name": "STRING", "duration": NUMBER (weeks), "tactics": ["tactic_id"]}]},
   "reasoning": "STRING",
   "estimatedROI": NUMBER,
-  "benchmarks": [{"metric": "STRING", "yourValue": "STRING", "industryAvg": "STRING", "unit": "STRING"}],
+  "benchmarks": [{"metric": "STRING", "yourValue": "STRING (number only, no symbols like $ or %) ", "industryAvg": "STRING (number only, no symbols)", "unit": "STRING ($ or % or x)"}],
   "channelRoadmap": [{"month": NUMBER, "channels": [{"name": "STRING", "action": "start|scale|optimize"}]}]
 }
 
