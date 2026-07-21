@@ -30,12 +30,14 @@ const funnelMeta: Record<string, { label: string; icon: string; headBg: string; 
 const funnelWidths = ["w-full", "w-3/4", "w-1/2", "w-1/3"]
 
 function ImpactBadge({ impact }: { impact: string }) {
+  const key = (impact || "").toUpperCase()
   const colors: Record<string, string> = { HIGH: "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 border-green-200 dark:border-green-700", MEDIUM: "bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700", LOW: "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-600" }
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium border ${colors[impact] || colors.LOW}`}>{impact}</span>
+  return <span className={`px-2 py-0.5 rounded text-xs font-medium border ${colors[key] || colors.LOW}`}>{impact}</span>
 }
 function EffortBadge({ effort }: { effort: string }) {
+  const key = (effort || "").toUpperCase()
   const colors: Record<string, string> = { LOW: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700", MEDIUM: "bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-700", HIGH: "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 border-red-200 dark:border-red-700" }
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium border ${colors[effort] || colors.LOW}`}>{effort}</span>
+  return <span className={`px-2 py-0.5 rounded text-xs font-medium border ${colors[key] || colors.LOW}`}>{effort}</span>
 }
 
 function DrilldownModal({ tactic, onClose }: { tactic: any; onClose: () => void }) {
@@ -310,11 +312,11 @@ export default function Home() {
             {(() => {
               const topChannel = result.channels?.slice().sort((a: any, b: any) => b.priority - a.priority)[0]
               const topTactic = result.tactics?.slice().sort((a: any, b: any) => (b.estimatedROI || 0) - (a.estimatedROI || 0))[0]
-              const quickWins = result.tactics?.filter((t: any) => t.impact === "HIGH" && t.effort === "LOW") || []
+              const quickWins = result.tactics?.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH" && (t.effort || "").toUpperCase() === "LOW") || []
               const avgROI = result.tactics?.length ? result.tactics.reduce((s: number, t: any) => s + (t.estimatedROI || 0), 0) / result.tactics.length : 0
               // Strategy Score (0-100)
               const channelScore = Math.min((result.channels?.length || 0) * 6, 25)
-              const highImpactRatio = result.tactics?.length ? result.tactics.filter((t: any) => t.impact === "HIGH").length / result.tactics.length : 0
+              const highImpactRatio = result.tactics?.length ? result.tactics.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH").length / result.tactics.length : 0
               const impactScore = highImpactRatio * 25
               const roiScore = Math.min((result.estimatedROI || 0) / 20, 25)
               const quickWinBonus = Math.min(quickWins.length * 3, 25)
@@ -424,7 +426,7 @@ export default function Home() {
 
             {/* Quick Wins */}
             {(() => {
-              const quickWins = result.tactics?.filter((t: any) => t.impact === "HIGH" && t.effort === "LOW") || []
+              const quickWins = result.tactics?.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH" && (t.effort || "").toUpperCase() === "LOW") || []
               if (quickWins.length === 0) return null
               return (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl shadow-lg p-6 border border-green-200 dark:border-green-800 mb-8">
@@ -514,14 +516,15 @@ export default function Home() {
                   </div>
                   <div className="divide-y dark:divide-gray-700">
                     {stage.tactics?.map((t: any) => {
-                      const impactColor = t.impact === "HIGH" ? "border-l-green-500" : t.impact === "MEDIUM" ? "border-l-amber-500" : "border-l-gray-400"
+                      const imp = (t.impact || "").toUpperCase()
+                      const impactColor = imp === "HIGH" ? "border-l-green-500" : imp === "MEDIUM" ? "border-l-amber-500" : "border-l-gray-400"
                       return (
                         <div key={t.id} className={`p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer border-l-4 ${impactColor}`} onClick={() => setDrilldown(t)}>
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-gray-900 dark:text-white">{t.title}</h3>
-                                {t.impact === "LOW" && <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-medium">⚠️ Review</span>}
+                                {(t.impact || "").toUpperCase() === "LOW" && <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-medium">⚠️ Review</span>}
                                 {t.channel && <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{t.channel}</span>}
                               </div>
                               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{t.description}</p>
