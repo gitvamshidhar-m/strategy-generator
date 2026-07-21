@@ -67,7 +67,7 @@ Return ONLY valid JSON with this structure:
   ]
 }
 
-Provide 1-3 new tactics for this stage. Do NOT repeat the existing tactic IDs. Use different approaches.`
+Provide 1-3 new tactics for this stage. Do NOT repeat the existing tactic IDs. Use different approaches. Write elaborate, detailed descriptions (2-3 sentences each) explaining exactly how to execute.`
 
   const userPrompt = `Industry: ${input.industry}, Budget: $${input.monthlyBudget}, Goal: ${input.primaryGoal}
 Existing channels: ${input.currentChannels.join(", ") || "None"}
@@ -141,7 +141,8 @@ Constraints:
 - Allocate 100% budget across at least 3 channels
 - Include at least 1-2 tactics per funnel stage (4 stages total)
 - Include high, medium, and low effort tactics
-- Each tactic must have a "channel" field specifying which channel it belongs to`
+- Each tactic must have a "channel" field specifying which channel it belongs to
+- Write elaborate, detailed descriptions (2-3 sentences each) explaining exactly how to execute the tactic`
 
   const userPrompt = `Client Profile:
 Industry: ${input.industry}
