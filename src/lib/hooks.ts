@@ -51,7 +51,10 @@ export function useStrategyHistory() {
   const remove = useCallback((id: string) => {
     setHistory((prev) => prev.filter((s) => s.id !== id))
   }, [setHistory])
-  return { history, save, remove }
+  const rename = useCallback((id: string, name: string) => {
+    setHistory((prev) => prev.map((s) => s.id === id ? { ...s, name } : s))
+  }, [setHistory])
+  return { history, save, remove, rename }
 }
 
 export interface BrandingConfig {

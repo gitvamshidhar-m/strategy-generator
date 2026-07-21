@@ -5,7 +5,7 @@ import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
 import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT } from "@/ai/strategy-engine"
 import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
-import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority } from "@/lib/utils"
+import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority, downloadJSON, downloadCSV } from "@/lib/utils"
 import {
   Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp,
   Users, DollarSign, Smartphone, Moon, Sun, History, Copy, Share2, X, Settings, Eye, GitCompare,
@@ -127,25 +127,34 @@ function SettingsPanel({ branding, setBranding, apiKey, setApiKey, onClose }: { 
   )
 }
 
-function HistoryPanel({ history, onLoad, onCompare, onRemove, onClose }: { history: any[]; onLoad: (s: any) => void; onCompare: (s: any) => void; onRemove: (id: string) => void; onClose: () => void }) {
+function HistoryPanel({ history, onLoad, onCompare, onRemove, onRename, onClose }: { history: any[]; onLoad: (s: any) => void; onCompare: (s: any) => void; onRemove: (id: string) => void; onRename: (id: string, name: string) => void; onClose: () => void }) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState("")
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[80vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white"><History size={20} className="inline mr-2" />Strategy History</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {history.length === 0 && <p className="text-gray-400 text-center py-8 text-sm">No saved strategies yet</p>}
           {history.map((s) => (
             <div key={s.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition group border border-gray-100 dark:border-gray-700">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{s.name}</p>
+                {editingId === s.id ? (
+                  <form onSubmit={(e) => { e.preventDefault(); if (editName.trim()) { onRename(s.id, editName.trim()); setEditingId(null) } }}>
+                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-2 py-1 text-sm border border-blue-500 rounded bg-white dark:bg-gray-600 dark:text-white outline-none" autoFocus onBlur={() => setEditingId(null)} />
+                  </form>
+                ) : (
+                  <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{s.name}</p>
+                )}
                 <p className="text-xs text-gray-400">{new Date(s.date).toLocaleString()} &middot; ${s.form?.budget?.toLocaleString()}/mo</p>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
                 <button onClick={() => { onLoad(s); onClose() }} className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600" title="Load"><Eye size={14} /></button>
                 <button onClick={() => { onCompare(s); onClose() }} className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 text-green-600" title="Compare"><GitCompare size={14} /></button>
+                <button onClick={() => { setEditingId(s.id); setEditName(s.name) }} className="p-1.5 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-600" title="Rename"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                 <button onClick={() => onRemove(s.id)} className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600" title="Delete"><Trash2 size={14} /></button>
               </div>
             </div>
@@ -199,7 +208,7 @@ function Header({ title, subtitle, branding }: { title: string; subtitle?: strin
 
 export default function Home() {
   const [form, updateForm] = useFormPersist()
-  const { history, save: saveHistory, remove: removeHistory } = useStrategyHistory()
+  const { history, save: saveHistory, remove: removeHistory, rename: renameHistory } = useStrategyHistory()
   const [branding, setBranding] = useBranding()
   const [isDark, toggleDark] = useDarkMode()
   const [apiKey, setApiKey] = useLocalStorage<string>("strategy-api-key", "")
@@ -219,12 +228,23 @@ export default function Home() {
   const [chatMsg, setChatMsg] = useState("")
   const [chatHistory, setChatHistory] = useState<{ role: string; text: string }[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [filterChannel, setFilterChannel] = useState("")
+  const [filterImpact, setFilterImpact] = useState("")
+  const [filterEffort, setFilterEffort] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [strategyNotes, setStrategyNotes] = useState("")
   const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const shared = parseShareUrl()
     if (shared) { setResult(shared.result); updateForm(shared.form) }
   }, [])
+
+  useEffect(() => {
+    if (result) {
+      try { const saved = localStorage.getItem(`strategy-notes-${form.industry}-${form.budget}-${form.goal}`); if (saved) setStrategyNotes(saved) } catch {}
+    }
+  }, [result])
 
   const industryName = INDUSTRIES.find((i) => i.id === form.industry)?.name || form.industry
 
@@ -341,9 +361,11 @@ export default function Home() {
               <Header title="Your Growth Strategy" subtitle={`${form.strategyStyle === "aggressive" ? "🚀 Aggressive" : form.strategyStyle === "conservative" ? "🛡️ Conservative" : "⚖️ Balanced"} · ${industryName} · $${form.budget.toLocaleString()}/mo`} branding={branding} />
               <div className="flex flex-wrap gap-2">
                 {copyMsg && <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full flex items-center">{copyMsg}</span>}
-                <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><Copy size={14} /> Copy</button>
-                <button onClick={handleShare} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><Share2 size={14} /> Share</button>
-                <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><Download size={14} /> PDF</button>
+                <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Copy size={14} /> Copy</button>
+                <button onClick={handleShare} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Share2 size={14} /> Share</button>
+                <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Download size={14} /> PDF</button>
+                <button onClick={() => downloadJSON(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">JSON</button>
+                <button onClick={() => downloadCSV(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">CSV</button>
                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><History size={14} /></button>
                 <button onClick={() => { setResult(null); setError("") }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-medium"><RotateCcw size={14} /> New</button>
               </div>
@@ -496,6 +518,35 @@ export default function Home() {
               </div>
             )}
 
+            {/* Search & Filter */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 mb-8">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
+                <div className="relative flex-1 min-w-[160px]">
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tactics..." className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white min-h-[44px]">
+                  <option value="">All channels</option>
+                  {result.channels?.map((c: any) => <option key={c.channel} value={c.channel}>{c.channel}</option>)}
+                </select>
+                <select value={filterImpact} onChange={(e) => setFilterImpact(e.target.value)} className="px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white min-h-[44px]">
+                  <option value="">All impact</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                </select>
+                <select value={filterEffort} onChange={(e) => setFilterEffort(e.target.value)} className="px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white min-h-[44px]">
+                  <option value="">All effort</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+                {(searchQuery || filterChannel || filterImpact || filterEffort) && (
+                  <button onClick={() => { setSearchQuery(""); setFilterChannel(""); setFilterImpact(""); setFilterEffort("") }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline min-h-[44px] flex items-center">Clear</button>
+                )}
+              </div>
+            </div>
+
             {/* Industry Benchmarks */}
             {result.benchmarks && result.benchmarks.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
@@ -611,6 +662,14 @@ export default function Home() {
 
             {result.funnel?.map((stage: any) => {
               const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", headBg: "bg-gray-50 dark:bg-gray-700", headBorder: "border-gray-200 dark:border-gray-600", stageBg: "bg-gray-50 dark:bg-gray-700", stageBorder: "border-gray-200 dark:border-gray-600", desc: "" }
+              const filteredTactics = (stage.tactics || []).filter((t: any) => {
+                if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
+                if (filterChannel && (t.channel || "").toUpperCase() !== filterChannel.toUpperCase()) return false
+                if (filterImpact && (t.impact || "").toUpperCase() !== filterImpact.toUpperCase()) return false
+                if (filterEffort && (t.effort || "").toUpperCase() !== filterEffort.toUpperCase()) return false
+                return true
+              })
+              if (filteredTactics.length === 0 && (searchQuery || filterChannel || filterImpact || filterEffort)) return null
               return (
                 <div id={`stage-${stage.stage}`} key={stage.stage} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 mb-6 overflow-hidden">
                   <div className={`${meta.headBg} px-6 py-4 border-b ${meta.headBorder}`}>
@@ -627,7 +686,7 @@ export default function Home() {
                     <p className="text-sm text-gray-500 dark:text-gray-400 italic mt-1">{stage.goal}</p>
                   </div>
                   <div className="divide-y dark:divide-gray-700">
-                    {stage.tactics?.map((t: any) => {
+                    {filteredTactics.map((t: any) => {
                       const imp = (t.impact || "").toUpperCase()
                       const impactColor = imp === "HIGH" ? "border-l-green-500" : imp === "MEDIUM" ? "border-l-amber-500" : "border-l-gray-400"
                       return (
@@ -751,13 +810,27 @@ export default function Home() {
               )
             })()}
 
+            {/* Strategy Notes */}
+            {(() => {
+              const notesKey = `strategy-notes-${form.industry}-${form.budget}-${form.goal}`
+              return (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg> Strategy Notes</h2>
+                    <button onClick={() => { try { localStorage.setItem(notesKey, strategyNotes) } catch {} }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Save Notes</button>
+                  </div>
+                  <textarea value={strategyNotes} onChange={(e) => setStrategyNotes(e.target.value)} placeholder="Add your notes, observations, or action items for this strategy..." rows={4} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-y" />
+                </div>
+              )
+            })()}
+
             <div className="text-center py-8 text-gray-400 dark:text-gray-600 text-xs">
               <p>Strategy generated by AI &middot; Review before implementing</p>
             </div>
           </div>
         </div>
         {drilldown && <DrilldownModal tactic={drilldown} onClose={() => setDrilldown(null)} />}
-        {showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onClose={() => setShowHistory(false)} />}
+        {showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onRename={renameHistory} onClose={() => setShowHistory(false)} />}
         {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />}
         {/* AI Strategy Chat */}
         {!showChat ? (
@@ -843,7 +916,7 @@ export default function Home() {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Monthly Budget</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">$</span>
-                  <input type="number" value={form.budget} onChange={(e) => updateForm({ budget: Number(e.target.value) })} min={1000} step={1000} className="w-full pl-8 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" />
+                  <input type="number" inputMode="numeric" value={form.budget} onChange={(e) => updateForm({ budget: Number(e.target.value) })} min={1000} step={1000} className="w-full pl-8 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" />
                 </div>
               </div>
               <div>
@@ -874,27 +947,27 @@ export default function Home() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target CPA ($)</label>
-                      <input type="number" value={form.targetCPA || ""} onChange={(e) => updateForm({ targetCPA: e.target.value ? Number(e.target.value) : undefined })} min={0} step={1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 25" />
+                      <input type="number" inputMode="numeric" value={form.targetCPA || ""} onChange={(e) => updateForm({ targetCPA: e.target.value ? Number(e.target.value) : undefined })} min={0} step={1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 25" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target ROAS (x)</label>
-                      <input type="number" value={form.targetROAS || ""} onChange={(e) => updateForm({ targetROAS: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 4" />
+                      <input type="number" inputMode="decimal" value={form.targetROAS || ""} onChange={(e) => updateForm({ targetROAS: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 4" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target Conv. Rate (%)</label>
-                      <input type="number" value={form.targetConversionRate || ""} onChange={(e) => updateForm({ targetConversionRate: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 3.5" />
+                      <input type="number" inputMode="decimal" value={form.targetConversionRate || ""} onChange={(e) => updateForm({ targetConversionRate: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 3.5" />
                     </div>
                   </div>
                 </details>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Current Channels</label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   {channels.slice(0, 6).map((ch) => {
                     const isSelected = form.selectedChannels.includes(ch.value)
                     return (
                       <button key={ch.value} type="button" onClick={() => toggleChannel(ch.value)}
-                        className={`p-2 rounded-lg border text-xs font-medium transition ${isSelected ? "border-blue-500 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 text-blue-700" : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-600 dark:text-gray-400"}`}>
+                        className={`py-2.5 px-2 rounded-lg border text-xs font-medium transition min-h-[44px] ${isSelected ? "border-blue-500 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 text-blue-700" : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-600 dark:text-gray-400"}`}>
                         {ch.label}
                       </button>
                     )

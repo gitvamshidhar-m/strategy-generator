@@ -46,3 +46,26 @@ export const channelTextColors = ["text-blue-600", "text-green-600", "text-purpl
 export function clampPriority(p: number): number {
   return Math.min(Math.max(p, 0), 5)
 }
+
+export function downloadJSON(result: any, form: any) {
+  const blob = new Blob([JSON.stringify({ form, result, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url; a.download = `strategy-${form.industry || "export"}-${Date.now()}.json`
+  a.click(); URL.revokeObjectURL(url)
+}
+
+export function downloadCSV(result: any, form: any) {
+  const rows = [["Stage", "Tactic", "Description", "Channel", "Impact", "Effort", "Est. ROI", "Steps"]]
+  ;(result.funnel || []).forEach((stage: any) =>
+    (stage.tactics || []).forEach((t: any) =>
+      rows.push([stage.label, t.title, `"${(t.description || "").replace(/"/g, '""')}"`, t.channel || "", t.impact || "", t.effort || "", t.estimatedROI?.toString() || "", `"${(t.steps || []).join("; ").replace(/"/g, '""')}"`])
+    )
+  )
+  const csv = rows.map((r) => r.join(",")).join("\n")
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url; a.download = `strategy-${form.industry || "export"}-${Date.now()}.csv`
+  a.click(); URL.revokeObjectURL(url)
+}
