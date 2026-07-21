@@ -22,6 +22,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 export interface FormState {
   industry: string; budget: number; goal: string; selectedChannels: string[]
   targetCPA?: number; targetROAS?: number; targetConversionRate?: number
+  strategyStyle?: string; competitors?: string
 }
 const defaultForm: FormState = { industry: "saas", budget: 10000, goal: "growth", selectedChannels: [] }
 

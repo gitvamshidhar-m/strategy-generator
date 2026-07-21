@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
-import { generateGrowthStrategy, regenerateStage } from "@/ai/strategy-engine"
+import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT } from "@/ai/strategy-engine"
 import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority } from "@/lib/utils"
 import {
   Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp,
   Users, DollarSign, Smartphone, Moon, Sun, History, Copy, Share2, X, Settings, Eye, GitCompare,
-  Trash2, Plus, RefreshCw, ChevronLeft, Save,
+  Trash2, Plus, RefreshCw, ChevronLeft, Save, MessageCircle, CheckSquare, Award,
 } from "lucide-react"
 
 const channels = [
@@ -42,19 +42,31 @@ function EffortBadge({ effort }: { effort: string }) {
 
 function DrilldownModal({ tactic, onClose }: { tactic: any; onClose: () => void }) {
   if (!tactic) return null
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">{tactic.title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={20} /></button>
         </div>
-        <div className="space-y-3">
-          <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Description</span><p className="text-gray-700 dark:text-gray-300 text-sm mt-1">{tactic.description}</p></div>
-          <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Channel</span><p className="text-gray-700 dark:text-gray-300 text-sm mt-1">{tactic.channel || "Multi-channel"}</p></div>
-          <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Why it works</span><p className="text-gray-700 dark:text-gray-300 text-sm mt-1">{tactic.reasoning}</p></div>
-          <div className="flex gap-2"><ImpactBadge impact={tactic.impact} /><EffortBadge effort={tactic.effort} /></div>
-          {tactic.estimatedROI && <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Est. ROI</span><p className="text-green-600 dark:text-green-400 font-bold text-lg">{tactic.estimatedROI.toFixed(1)}%</p></div>}
+        <div className="space-y-4">
+          <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Description</span><p className="text-gray-700 dark:text-gray-300 text-sm mt-1 leading-relaxed">{tactic.description}</p></div>
+          <div className="flex flex-wrap gap-2"><ImpactBadge impact={tactic.impact} /><EffortBadge effort={tactic.effort} /><span className="px-2 py-0.5 rounded text-xs font-medium border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">{tactic.channel || "Multi"}</span>{tactic.estimatedROI && <span className="px-2 py-0.5 rounded text-xs font-medium border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400">{tactic.estimatedROI.toFixed(1)}% ROI</span>}</div>
+          <div><span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Why it works</span><p className="text-gray-700 dark:text-gray-300 text-sm mt-1 leading-relaxed">{tactic.reasoning}</p></div>
+          {tactic.steps && tactic.steps.length > 0 && (
+            <div>
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1 mb-2"><CheckSquare size={12} /> Execution Checklist</span>
+              <div className="space-y-1.5">
+                {tactic.steps.map((step: string, i: number) => (
+                  <label key={i} className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition ${checked[`${tactic.id}-${i}`] ? "bg-green-50 dark:bg-green-900/20 line-through opacity-60" : "bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"}`}>
+                    <input type="checkbox" checked={checked[`${tactic.id}-${i}`] || false} onChange={() => setChecked((p) => ({ ...p, [`${tactic.id}-${i}`]: !p[`${tactic.id}-${i}`] }))} className="mt-0.5 rounded" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{step}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -201,6 +213,12 @@ export default function Home() {
   const [showCompare, setShowCompare] = useState(false)
   const [copyMsg, setCopyMsg] = useState("")
   const [regenStage, setRegenStage] = useState<string | null>(null)
+  const [swot, setSwot] = useState<any>(null)
+  const [swotLoading, setSwotLoading] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatMsg, setChatMsg] = useState("")
+  const [chatHistory, setChatHistory] = useState<{ role: string; text: string }[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -228,6 +246,7 @@ export default function Home() {
       const res = await generateGrowthStrategy({
         industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal,
         targetCPA: form.targetCPA, targetROAS: form.targetROAS, targetConversionRate: form.targetConversionRate,
+        strategyStyle: form.strategyStyle, competitors: form.competitors,
       })
       setResult(res)
       saveHistory(form, res)
@@ -243,7 +262,7 @@ export default function Home() {
     setRegenStage(stage)
     try {
       const updated = await regenerateStage(
-        { industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal, targetCPA: form.targetCPA, targetROAS: form.targetROAS, targetConversionRate: form.targetConversionRate },
+        { industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal, targetCPA: form.targetCPA, targetROAS: form.targetROAS, targetConversionRate: form.targetConversionRate, strategyStyle: form.strategyStyle, competitors: form.competitors },
         result,
         stage
       )
@@ -257,6 +276,28 @@ export default function Home() {
     } finally {
       setRegenStage(null)
     }
+  }
+
+  const handleChat = async () => {
+    if (!chatMsg.trim()) return
+    const userMsg = chatMsg.trim()
+    setChatMsg("")
+    setChatHistory((p) => [...p, { role: "user", text: userMsg }])
+    setChatLoading(true)
+    try {
+      const reply = await chatWithStrategy(result, form, userMsg)
+      setChatHistory((p) => [...p, { role: "ai", text: reply }])
+    } catch { setChatHistory((p) => [...p, { role: "ai", text: "Sorry, I couldn't process that. Try again." }]) }
+    finally { setChatLoading(false) }
+  }
+
+  const handleSWOT = async () => {
+    setSwotLoading(true)
+    try {
+      const data = await generateSWOT(form.industry, form.competitors || "", result)
+      setSwot(data)
+    } catch { setError("Failed to generate SWOT") }
+    finally { setSwotLoading(false) }
   }
 
   const handleCopy = () => {
@@ -297,7 +338,7 @@ export default function Home() {
         <div ref={resultsRef} className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <Header title="Your Growth Strategy" subtitle={`Generated for ${industryName} — $${form.budget.toLocaleString()}/mo budget`} branding={branding} />
+              <Header title="Your Growth Strategy" subtitle={`${form.strategyStyle === "aggressive" ? "🚀 Aggressive" : form.strategyStyle === "conservative" ? "🛡️ Conservative" : "⚖️ Balanced"} · ${industryName} · $${form.budget.toLocaleString()}/mo`} branding={branding} />
               <div className="flex flex-wrap gap-2">
                 {copyMsg && <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full flex items-center">{copyMsg}</span>}
                 <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><Copy size={14} /> Copy</button>
@@ -424,6 +465,71 @@ export default function Home() {
               </div>
             </div>
 
+            {/* SWOT Analysis */}
+            {form.competitors && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Competitor SWOT</h2>
+                  {!swot && <button onClick={handleSWOT} disabled={swotLoading} className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">{swotLoading ? "Analyzing..." : "Generate SWOT"}</button>}
+                </div>
+                {swotLoading && <div className="skeleton h-32 rounded-xl" />}
+                {swot && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                      <h3 className="text-sm font-bold text-green-800 dark:text-green-300 mb-2">Strengths</h3>
+                      <ul className="space-y-1">{swot.strengths?.map((s: string, i: number) => <li key={i} className="text-xs text-green-700 dark:text-green-400 flex items-start gap-1.5"><span className="text-green-500 mt-0.5">+</span>{s}</li>)}</ul>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                      <h3 className="text-sm font-bold text-red-800 dark:text-red-300 mb-2">Weaknesses</h3>
+                      <ul className="space-y-1">{swot.weaknesses?.map((s: string, i: number) => <li key={i} className="text-xs text-red-700 dark:text-red-400 flex items-start gap-1.5"><span className="text-red-500 mt-0.5">−</span>{s}</li>)}</ul>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                      <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2">Opportunities</h3>
+                      <ul className="space-y-1">{swot.opportunities?.map((s: string, i: number) => <li key={i} className="text-xs text-blue-700 dark:text-blue-400 flex items-start gap-1.5"><span className="text-blue-500 mt-0.5">→</span>{s}</li>)}</ul>
+                    </div>
+                    <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4">
+                      <h3 className="text-sm font-bold text-orange-800 dark:text-orange-300 mb-2">Threats</h3>
+                      <ul className="space-y-1">{swot.threats?.map((s: string, i: number) => <li key={i} className="text-xs text-orange-700 dark:text-orange-400 flex items-start gap-1.5"><span className="text-orange-500 mt-0.5">!</span>{s}</li>)}</ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Industry Benchmarks */}
+            {result.benchmarks && result.benchmarks.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white"><Award size={18} className="text-blue-600" /> Industry Benchmarks</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {result.benchmarks.map((b: any, i: number) => {
+                    const yourVal = parseFloat(b.yourValue)
+                    const avgVal = parseFloat(b.industryAvg)
+                    const isBetter = !isNaN(yourVal) && !isNaN(avgVal) && yourVal > avgVal
+                    const ratio = !isNaN(yourVal) && !isNaN(avgVal) && avgVal > 0 ? Math.min((yourVal / avgVal) * 100, 150) : 50
+                    return (
+                      <div key={i} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-100 dark:border-gray-600">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{b.metric}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">You</p>
+                            <p className={`text-lg font-bold ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{b.yourValue}{b.unit}</p>
+                          </div>
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">Industry Avg</p>
+                            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{b.industryAvg}{b.unit}</p>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2 overflow-hidden">
+                          <div className={`h-2 rounded-full ${isBetter ? "bg-green-500" : "bg-amber-500"}`} style={{ width: `${ratio}%` }}></div>
+                        </div>
+                        <p className={`text-[10px] mt-1 text-center ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{isBetter ? "Above average" : "Below average"}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Quick Wins */}
             {(() => {
               const quickWins = result.tactics?.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH" && (t.effort || "").toUpperCase() === "LOW") || []
@@ -549,6 +655,19 @@ export default function Home() {
                               </div>
                             </div>
                           </div>
+                          {t.steps && t.steps.length > 0 && (
+                            <details className="mt-2 group">
+                              <summary className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition flex items-center gap-1"><CheckSquare size={12} /> {t.steps.length} execution steps</summary>
+                              <div className="mt-2 space-y-1">
+                                {t.steps.map((step: string, si: number) => (
+                                  <div key={si} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                    <span className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{si + 1}</span>
+                                    <span>{step}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </div>
                       )
                     })}
@@ -556,6 +675,35 @@ export default function Home() {
                 </div>
               )
             })}
+
+            {/* Channel Maturity Roadmap */}
+            {result.channelRoadmap && result.channelRoadmap.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white"><TrendingUp size={18} className="text-blue-600" /> Channel Maturity Roadmap</h2>
+                <div className="relative">
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-600"></div>
+                  <div className="space-y-6">
+                    {result.channelRoadmap.map((month: any, idx: number) => (
+                      <div key={idx} className="relative pl-10">
+                        <div className="absolute left-2.5 top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white dark:border-gray-800"></div>
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-100 dark:border-gray-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Month {month.month}</h3>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-600 px-2 py-0.5 rounded border dark:border-gray-500">{month.channels?.length || 0} channels</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {month.channels?.map((ch: any, ci: number) => {
+                              const actionColors: Record<string, string> = { start: "bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700", scale: "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700", optimize: "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700" }
+                              return <span key={ci} className={`text-xs px-2 py-1 rounded-full border font-medium ${actionColors[ch.action] || "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400"}`}>{ch.action} {ch.name}</span>
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Content Calendar */}
             {(() => {
@@ -605,6 +753,37 @@ export default function Home() {
         {drilldown && <DrilldownModal tactic={drilldown} onClose={() => setDrilldown(null)} />}
         {showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onClose={() => setShowHistory(false)} />}
         {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />}
+        {/* AI Strategy Chat */}
+        {!showChat ? (
+          <button onClick={() => setShowChat(true)} className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition flex items-center justify-center">
+            <MessageCircle size={24} />
+          </button>
+        ) : (
+          <div className="fixed bottom-6 right-6 z-40 w-[380px] max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col" style={{ height: "500px", maxHeight: "calc(100vh - 120px)" }}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2"><MessageCircle size={16} className="text-blue-600" /> Strategy Chat</h3>
+              <button onClick={() => setShowChat(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {chatHistory.length === 0 && <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-8">Ask anything about your strategy — "How do I execute tactic X?" or "What happens if I increase my budget?"</p>}
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}`}>
+                    {msg.role === "ai" && <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 font-medium">AI</p>}
+                    <p className="leading-relaxed">{msg.text}</p>
+                  </div>
+                </div>
+              ))}
+              {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 dark:bg-gray-700 rounded-xl px-3 py-2 text-sm text-gray-500 dark:text-gray-400"><Loader2 size={14} className="animate-spin inline mr-1" /> Thinking...</div></div>}
+            </div>
+            <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+              <form onSubmit={(e) => { e.preventDefault(); handleChat() }} className="flex gap-2">
+                <input type="text" value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} placeholder="Ask about your strategy..." className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" disabled={chatLoading} />
+                <button type="submit" disabled={chatLoading || !chatMsg.trim()} className="px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition"><MessageCircle size={16} /></button>
+              </form>
+            </div>
+          </div>
+        )}
       </>
     )
   }
@@ -670,6 +849,18 @@ export default function Home() {
                   <option value="retention">❤️ Customer Retention</option>
                   <option value="growth">📈 Overall Growth</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Strategy Style</label>
+                <select value={form.strategyStyle || "balanced"} onChange={(e) => updateForm({ strategyStyle: e.target.value })} className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm">
+                  <option value="balanced">⚖️ Balanced</option>
+                  <option value="aggressive">🚀 Aggressive (high growth)</option>
+                  <option value="conservative">🛡️ Conservative (low risk)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Competitors (for SWOT)</label>
+                <input type="text" value={form.competitors || ""} onChange={(e) => updateForm({ competitors: e.target.value })} placeholder="e.g. Competitor A, Competitor B" className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" />
               </div>
               <div className="md:col-span-2">
                 <details className="group">

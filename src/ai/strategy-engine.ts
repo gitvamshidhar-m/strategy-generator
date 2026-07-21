@@ -2,6 +2,18 @@
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 
+async function groqChat(system: string, user: string, temp = 0.7): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY environment variable is not set")
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: temp, response_format: { type: "json_object" } }),
+  })
+  if (!res.ok) throw new Error(`Groq API error: ${res.status} ${await res.text()}`)
+  const data = await res.json()
+  return data.choices[0].message.content
+}
+
 export interface StrategyInput {
   industry: string
   currentChannels: string[]
@@ -13,6 +25,8 @@ export interface StrategyInput {
   targetCPA?: number
   targetROAS?: number
   targetConversionRate?: number
+  strategyStyle?: string
+  competitors?: string
 }
 
 export interface FunnelTactic {
@@ -24,6 +38,7 @@ export interface FunnelTactic {
   impact: string
   estimatedROI: number
   channel: string
+  steps?: string[]
 }
 
 export interface FunnelStage {
@@ -45,107 +60,53 @@ export interface GeneratedStrategy {
     impact: string
     estimatedROI: number
     channel: string
+    steps?: string[]
   }[]
   timeline: { phases: { name: string; duration: number; tactics: string[] }[] }
   reasoning: string
   estimatedROI: number
+  benchmarks?: { metric: string; yourValue: string; industryAvg: string; unit: string }[]
+  channelRoadmap?: { month: number; channels: { name: string; action: string }[] }[]
 }
 
-export async function regenerateStage(
-  input: StrategyInput,
-  existingStrategy: GeneratedStrategy,
-  stageToRegen: string
-): Promise<FunnelStage> {
+const tacticFields = `{"id": "STRING", "title": "STRING", "description": "STRING (2-3 sentences)", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING", "steps": ["Step 1...", "Step 2...", "Step 3..."]}`
+
+export async function generateGrowthStrategy(input: StrategyInput): Promise<GeneratedStrategy> {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY environment variable is not set")
 
-  const systemPrompt = `You are a growth strategy expert. Given an existing strategy, regenerate ONLY the "${stageToRegen}" funnel stage.
-
-Return ONLY valid JSON with this structure:
-{
-  "stage": "${stageToRegen}",
-  "label": "string",
-  "goal": "string",
-  "tactics": [
-    {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING"}
-  ]
-}
-
-Provide 1-3 new tactics for this stage. Do NOT repeat the existing tactic IDs. Use different approaches. Write elaborate, detailed descriptions (2-3 sentences each) explaining exactly how to execute.`
-
-  const userPrompt = `Industry: ${input.industry}, Budget: $${input.monthlyBudget}, Goal: ${input.primaryGoal}
-Existing channels: ${input.currentChannels.join(", ") || "None"}
-Regenerate stage: ${stageToRegen}`
-
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], temperature: 0.7, response_format: { type: "json_object" } }),
-  })
-  if (!res.ok) throw new Error(`Groq API error: ${res.status}`)
-  const data = await res.json()
-  return JSON.parse(data.choices[0].message.content)
-}
-
-export async function generateGrowthStrategy(
-  input: StrategyInput
-): Promise<GeneratedStrategy> {
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY environment variable is not set")
+  const styleGuide: Record<string, string> = {
+    aggressive: "Recommend bolder moves: higher budgets on PPC/Paid Social, faster scaling, 3-4 tactics per stage. Higher risk but higher potential return.",
+    conservative: "Recommend safer moves: focus on organic channels (SEO/Content/Email), lower ad spend, 1-2 tactics per stage. Lower risk, steady growth.",
+    balanced: "Mix of paid and organic channels, moderate scaling, 2-3 tactics per stage. Balanced risk and return.",
   }
 
-  const systemPrompt = `You are a growth strategy expert for agencies. Generate a JSON marketing strategy organized by marketing funnel stages.
+  const systemPrompt = `You are a growth strategy expert for agencies. Generate a JSON marketing strategy.
+
+Strategy style: ${input.strategyStyle || "balanced"}
+${styleGuide[input.strategyStyle || "balanced"]}
 
 Return ONLY valid JSON with this structure:
 {
-  "channels": [
-    {"channel": "STRING", "priority": NUMBER, "budgetAllocation": NUMBER}
-  ],
+  "channels": [ {"channel": "STRING", "priority": NUMBER (1-5), "budgetAllocation": NUMBER (percentage)} ],
   "funnel": [
-    {
-      "stage": "awareness",
-      "label": "Awareness",
-      "goal": "string describing what this stage aims to achieve for this client",
-      "tactics": [
-        {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING"}
-      ]
-    },
-    {
-      "stage": "consideration",
-      "label": "Consideration",
-      "goal": "string",
-      "tactics": [...]
-    },
-    {
-      "stage": "conversion",
-      "label": "Conversion",
-      "goal": "string",
-      "tactics": [...]
-    },
-    {
-      "stage": "loyalty",
-      "label": "Loyalty",
-      "goal": "string",
-      "tactics": [...]
-    }
+    {"stage": "awareness", "label": "Awareness", "goal": "STRING", "tactics": [${tacticFields}]},
+    {"stage": "consideration", "label": "Consideration", "goal": "STRING", "tactics": [${tacticFields}]},
+    {"stage": "conversion", "label": "Conversion", "goal": "STRING", "tactics": [${tacticFields}]},
+    {"stage": "loyalty", "label": "Loyalty", "goal": "STRING", "tactics": [${tacticFields}]}
   ],
-  "tactics": [
-    {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "STRING", "impact": "STRING", "estimatedROI": NUMBER, "channel": "STRING"}
-  ],
-  "timeline": {
-    "phases": [
-      {"name": "STRING", "duration": NUMBER, "tactics": ["STRING"]}
-    ]
-  },
+  "tactics": [${tacticFields}],
+  "timeline": {"phases": [{"name": "STRING", "duration": NUMBER (weeks), "tactics": ["tactic_id"]}]},
   "reasoning": "STRING",
-  "estimatedROI": NUMBER
+  "estimatedROI": NUMBER,
+  "benchmarks": [{"metric": "STRING", "yourValue": "STRING", "industryAvg": "STRING", "unit": "STRING"}],
+  "channelRoadmap": [{"month": NUMBER, "channels": [{"name": "STRING", "action": "start|scale|optimize"}]}]
 }
 
 Constraints:
-- Allocate 100% budget across at least 3 channels
-- Include at least 1-2 tactics per funnel stage (4 stages total)
-- Include high, medium, and low effort tactics
-- Each tactic must have a "channel" field specifying which channel it belongs to
-- Write elaborate, detailed descriptions (2-3 sentences each) explaining exactly how to execute the tactic`
+- Allocate 100% budget across channels
+- Each tactic MUST have "steps" array with 3-5 actionable execution steps
+- Include benchmarks comparing this strategy's expected performance to industry averages
+- Include a 6-month channel roadmap showing when to start/scale/optimize each channel`
 
   const kpiSection = [
     input.targetCPA ? `Target CPA: $${input.targetCPA}` : "",
@@ -161,40 +122,67 @@ Primary Goal: ${input.primaryGoal}
 Target Audience: ${input.targetAudience || "Not specified"}
 Business Stage: ${input.businessStage || "Not specified"}
 Team Size: ${input.teamSize || "Not specified"}
+Strategy Style: ${input.strategyStyle || "balanced"}
+${input.competitors ? `Competitors to analyze: ${input.competitors}` : ""}
 ${kpiSection ? `\nKPI Targets:\n${kpiSection}` : ""}
 
 Generate a comprehensive growth strategy as JSON.`
 
   try {
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" },
-        }),
-      }
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Groq API error: ${response.status} ${errorText}`)
-    }
-
-    const data = await response.json()
-    return JSON.parse(data.choices[0].message.content)
+    const content = await groqChat(systemPrompt, userPrompt)
+    return JSON.parse(content)
   } catch (error) {
     console.error("Error generating strategy:", error)
     throw new Error("Failed to generate growth strategy")
   }
+}
+
+export async function regenerateStage(input: StrategyInput, existingStrategy: GeneratedStrategy, stageToRegen: string): Promise<FunnelStage> {
+  const systemPrompt = `You are a growth strategy expert. Given an existing strategy, regenerate ONLY the "${stageToRegen}" funnel stage.
+
+Return ONLY valid JSON with this structure:
+{
+  "stage": "${stageToRegen}",
+  "label": "STRING",
+  "goal": "STRING",
+  "tactics": [${tacticFields}]
+}
+
+Provide 1-3 new tactics for this stage. Do NOT repeat the existing tactic IDs. Each tactic must have 3-5 execution steps.`
+
+  const userPrompt = `Industry: ${input.industry}, Budget: $${input.monthlyBudget}, Goal: ${input.primaryGoal}
+Existing channels: ${input.currentChannels.join(", ") || "None"}
+Regenerate stage: ${stageToRegen}`
+
+  const content = await groqChat(systemPrompt, userPrompt)
+  return JSON.parse(content)
+}
+
+export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, message: string): Promise<string> {
+  const context = `The user generated a growth strategy for ${form.industry} with a $${form.budget}/mo budget.
+Strategy overview: ${strategy.reasoning}
+Channels: ${strategy.channels?.map((c: any) => `${c.channel} (${c.budgetAllocation}%)`).join(", ")}
+Total tactics: ${strategy.tactics?.length || 0}
+Estimated ROI: ${strategy.estimatedROI}%`
+
+  const system = `You are an AI strategy consultant. You have access to the user's generated strategy. Answer their questions helpfully. Be specific and reference their strategy data. Keep answers concise but thorough. If they ask about executing a tactic, provide actionable advice. If they ask "what if" scenarios, explain the tradeoffs.`
+
+  const content = await groqChat(system, `${context}\n\nUser question: ${message}`, 0.5)
+  return content
+}
+
+export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
+  const system = `You are a strategy analyst. Given a strategy and competitor info, generate a SWOT analysis. Return ONLY valid JSON:
+{
+  "strengths": ["STRING", ...],
+  "weaknesses": ["STRING", ...],
+  "opportunities": ["STRING", ...],
+  "threats": ["STRING", ...]
+}`
+  const user = `Industry: ${industry}
+Competitors: ${competitors}
+Strategy channels: ${strategy.channels?.map((c: any) => c.channel).join(", ") || "N/A"}
+Total budget allocation tactics.`
+  const content = await groqChat(system, user, 0.5)
+  return JSON.parse(content)
 }
