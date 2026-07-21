@@ -22,7 +22,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 export interface FormState {
   industry: string; budget: number; goal: string; selectedChannels: string[]
   targetCPA?: number; targetROAS?: number; targetConversionRate?: number
-  strategyStyle?: string; competitors?: string
+  strategyStyle?: string; competitors?: string; clientName?: string
 }
 const defaultForm: FormState = { industry: "saas", budget: 10000, goal: "growth", selectedChannels: [] }
 
@@ -42,7 +42,8 @@ export function useStrategyHistory() {
   const [history, setHistory] = useLocalStorage<SavedStrategy[]>("strategy-history", [])
   const save = useCallback((form: FormState, result: any) => {
     const entry: SavedStrategy = {
-      id: Date.now().toString(36), name: `${form.industry} - ${new Date().toLocaleDateString()}`,
+      id: Date.now().toString(36),
+      name: form.clientName ? `${form.clientName} — ${form.industry}` : `${form.industry} - ${new Date().toLocaleDateString()}`,
       date: new Date().toISOString(), form, result,
     }
     setHistory((prev) => [entry, ...prev].slice(0, 20))

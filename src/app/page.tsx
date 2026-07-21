@@ -233,6 +233,8 @@ export default function Home() {
   const [filterEffort, setFilterEffort] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [strategyNotes, setStrategyNotes] = useState("")
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [editAllocations, setEditAllocations] = useState<Record<string, number>>({})
   const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -248,6 +250,22 @@ export default function Home() {
 
   const industryName = INDUSTRIES.find((i) => i.id === form.industry)?.name || form.industry
 
+  const validate = (): string | null => {
+    if (form.selectedChannels.length === 0) return "Select at least one channel"
+    const chCount = form.selectedChannels.length
+    if (form.budget < 1000) return "Minimum budget is $1,000/mo"
+    if (chCount >= 6 && form.budget < 5000) return `$${form.budget.toLocaleString()}/mo is too low for ${chCount} channels — try 2-3 channels or increase your budget`
+    if (chCount >= 4 && form.budget < 3000) return `Consider fewer channels (2-3) with a $${form.budget.toLocaleString()} budget for better impact`
+    if (form.strategyStyle === "aggressive" && form.budget < 5000) return "Aggressive strategy works best with $5,000+/mo budget for sufficient ad spend"
+    if (form.strategyStyle === "aggressive" && form.targetCPA && form.targetCPA < 10) return "Aggressive CPA target under $10 is unrealistic for most industries"
+    if (form.strategyStyle === "conservative" && form.targetROAS && form.targetROAS > 8) return "Conservative strategy with 8x+ ROAS target may be too ambitious"
+    if (form.goal === "sales" && form.budget < 3000) return "Drive Sales typically needs $3,000+/mo for meaningful ad spend"
+    if (form.goal === "awareness" && form.budget < 2000) return "Brand Awareness campaigns usually start at $2,000+/mo for reach"
+    return null
+  }
+
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([])
+
   const toggleChannel = (value: string) => {
     updateForm({
       selectedChannels: form.selectedChannels.includes(value)
@@ -256,9 +274,18 @@ export default function Home() {
     })
   }
 
+  useEffect(() => {
+    const warnings: string[] = []
+    if (form.budget >= 1000 && form.selectedChannels.length >= 6 && form.budget < 5000) warnings.push(`${form.selectedChannels.length} channels with $${form.budget.toLocaleString()}/mo may spread budget too thin`)
+    if (form.strategyStyle === "aggressive" && form.budget < 5000) warnings.push("Aggressive style pairs better with $5,000+/mo")
+    if (form.targetCPA && form.targetROAS && form.targetCPA > 0 && form.targetROAS > 0 && (form.budget / form.targetCPA) * form.targetROAS < form.budget * 1.5) warnings.push("CPA and ROAS targets may not align with available budget")
+    setValidationWarnings(warnings)
+  }, [form.budget, form.selectedChannels.length, form.strategyStyle, form.targetCPA, form.targetROAS])
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (form.selectedChannels.length === 0) { setError("Select at least one channel"); return }
+    const validationError = validate()
+    if (validationError) { setError(validationError); return }
     setError("")
     setIsLoading(true)
     setResult(null)
@@ -358,7 +385,7 @@ export default function Home() {
         <div ref={resultsRef} className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <Header title="Your Growth Strategy" subtitle={`${form.strategyStyle === "aggressive" ? "🚀 Aggressive" : form.strategyStyle === "conservative" ? "🛡️ Conservative" : "⚖️ Balanced"} · ${industryName} · $${form.budget.toLocaleString()}/mo`} branding={branding} />
+              <Header title={form.clientName ? `${form.clientName} — Growth Strategy` : "Your Growth Strategy"} subtitle={`${form.strategyStyle === "aggressive" ? "🚀 Aggressive" : form.strategyStyle === "conservative" ? "🛡️ Conservative" : "⚖️ Balanced"} · ${industryName} · $${form.budget.toLocaleString()}/mo`} branding={branding} />
               <div className="flex flex-wrap gap-2">
                 {copyMsg && <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full flex items-center">{copyMsg}</span>}
                 <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Copy size={14} /> Copy</button>
@@ -434,16 +461,36 @@ export default function Home() {
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Budget Allocation</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Budget Allocation</h2>
+                  <button onClick={() => { if (!editingBudget) { const alloc: Record<string, number> = {}; result.channels?.forEach((ch: any) => { alloc[ch.channel] = ch.budgetAllocation }); setEditAllocations(alloc) }; setEditingBudget(!editingBudget) }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{editingBudget ? "Done" : "Adjust"}</button>
+                </div>
                 <div className="space-y-3">
-                  {result.channels?.map((c: any, i: number) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700 dark:text-gray-300">{c.channel}</span><span className="text-gray-500 dark:text-gray-400">{c.budgetAllocation}%</span></div>
+                  {(editingBudget ? Object.entries(editAllocations) : result.channels?.map((c: any) => [c.channel, c.budgetAllocation] as [string, number]))?.map(([channel, alloc]: [string, number], i: number) => (
+                    <div key={channel}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{channel}</span>
+                        <div className="flex items-center gap-2">
+                          {editingBudget && (
+                            <button onClick={() => setEditAllocations((p) => ({ ...p, [channel]: Math.max(0, alloc - 5) }))} className="w-6 h-6 rounded bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-300 flex items-center justify-center text-sm hover:bg-gray-200 dark:hover:bg-gray-500">−</button>
+                          )}
+                          <span className="text-gray-500 dark:text-gray-400 w-8 text-right">{alloc}%</span>
+                          {editingBudget && (
+                            <button onClick={() => setEditAllocations((p) => ({ ...p, [channel]: Math.min(100, alloc + 5) }))} className="w-6 h-6 rounded bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-300 flex items-center justify-center text-sm hover:bg-gray-200 dark:hover:bg-gray-500">+</button>
+                          )}
+                        </div>
+                      </div>
                       <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-                        <div className={`${channelColors[i % channelColors.length]} h-2.5 rounded-full transition-all duration-1000`} style={{ width: `${c.budgetAllocation}%` }}></div>
+                        <div className={`${channelColors[i % channelColors.length]} h-2.5 rounded-full transition-all duration-1000`} style={{ width: `${alloc}%` }}></div>
                       </div>
                     </div>
                   ))}
+                  {editingBudget && (
+                    <div className="flex justify-between text-xs text-gray-400 pt-1">
+                      <span>Total: {Object.values(editAllocations).reduce((s, v) => s + v, 0)}%</span>
+                      {Object.values(editAllocations).reduce((s, v) => s + v, 0) !== 100 && <span className="text-amber-500">Should add up to 100%</span>}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -907,6 +954,10 @@ export default function Home() {
           <form onSubmit={onSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Client Name (optional)</label>
+                <input type="text" value={form.clientName || ""} onChange={(e) => updateForm({ clientName: e.target.value })} placeholder="e.g. Acme Corp" className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" />
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Industry</label>
                 <select value={form.industry} onChange={(e) => updateForm({ industry: e.target.value })} className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm">
                   {INDUSTRIES.map((ind) => (<option key={ind.id} value={ind.id}>{ind.icon} {ind.name}</option>))}
@@ -946,15 +997,15 @@ export default function Home() {
                   <summary className="text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 transition">⚡ KPI Targets (optional)</summary>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target CPA ($)</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target CPA <span className="text-[10px] text-gray-300 dark:text-gray-600 cursor-help" title="Cost Per Acquisition — how much you're willing to spend to get one customer. Lower is better. Example: if you spend $25 to get a $100 customer, that's a good CPA.">ⓘ</span></label>
                       <input type="number" inputMode="numeric" value={form.targetCPA || ""} onChange={(e) => updateForm({ targetCPA: e.target.value ? Number(e.target.value) : undefined })} min={0} step={1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 25" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target ROAS (x)</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target ROAS <span className="text-[10px] text-gray-300 dark:text-gray-600 cursor-help" title="Return On Ad Spend — how many dollars you earn for every $1 spent on ads. 4x means $4 earned per $1 spent. Higher is better.">ⓘ</span></label>
                       <input type="number" inputMode="decimal" value={form.targetROAS || ""} onChange={(e) => updateForm({ targetROAS: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 4" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target Conv. Rate (%)</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target Conv. Rate <span className="text-[10px] text-gray-300 dark:text-gray-600 cursor-help" title="Conversion Rate — the percentage of people who take the desired action (buy, sign up, etc.). Example: 3% means 3 out of every 100 visitors convert. Higher is better.">ⓘ</span></label>
                       <input type="number" inputMode="decimal" value={form.targetConversionRate || ""} onChange={(e) => updateForm({ targetConversionRate: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 3.5" />
                     </div>
                   </div>
@@ -987,6 +1038,11 @@ export default function Home() {
                 return ch ? <button key={v} type="button" onClick={() => toggleChannel(v)} className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800/50 transition">{ch.label} ✕</button> : null
               })}
             </div>
+            {validationWarnings.length > 0 && !error && (
+              <div className="space-y-1">
+                {validationWarnings.map((w, i) => <p key={i} className="text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">{w}</p>)}
+              </div>
+            )}
             {error && <p className="text-red-500 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 p-3 rounded-xl">{error}</p>}
             <button type="submit" disabled={isLoading}
               className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-blue-900/50 text-sm">
