@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
 import { generateGrowthStrategy, regenerateStage } from "@/ai/strategy-engine"
-import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useTheme, ThemeProvider } from "@/lib/hooks"
+import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority } from "@/lib/utils"
 import {
   Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp,
@@ -187,7 +187,7 @@ export default function Home() {
   const [form, updateForm] = useFormPersist()
   const { history, save: saveHistory, remove: removeHistory } = useStrategyHistory()
   const [branding, setBranding] = useBranding()
-  const { theme, toggle: toggleTheme } = useTheme()
+  const [isDark, toggleDark] = useDarkMode()
   const [apiKey, setApiKey] = useLocalStorage<string>("strategy-api-key", "")
   const [result, setResult] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -483,8 +483,8 @@ export default function Home() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="max-w-3xl mx-auto px-4 py-12 md:py-20">
           <div className="flex justify-end gap-2 mb-4">
-            <button onClick={toggleTheme} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-              {theme === "dark" ? <Sun size={16} className="text-gray-600 dark:text-gray-300" /> : <Moon size={16} className="text-gray-600" />}
+            <button onClick={toggleDark} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+              {isDark ? <Sun size={16} className="text-gray-600 dark:text-gray-300" /> : <Moon size={16} className="text-gray-600" />}
             </button>
             <button onClick={() => setShowSettings} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
               <Settings size={16} className="text-gray-600 dark:text-gray-300" />

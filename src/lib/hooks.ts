@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, createContext, useContext } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   const [stored, setStored] = useState<T>(initialValue)
@@ -60,14 +60,10 @@ export function useBranding() {
   return useLocalStorage<BrandingConfig>("strategy-branding", defaultBranding)
 }
 
-type Theme = "light" | "dark"
-const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({ theme: "light", toggle: () => {} })
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useLocalStorage<Theme>("strategy-theme", "light")
+export function useDarkMode() {
+  const [dark, setDark] = useLocalStorage<boolean>("strategy-dark", false)
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-  }, [theme])
-  const toggle = useCallback(() => setTheme((p) => (p === "light" ? "dark" : "light")), [setTheme])
-  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>
+    document.documentElement.classList.toggle("dark", dark)
+  }, [dark])
+  return [dark, () => setDark((p) => !p)] as const
 }
-export function useTheme() { return useContext(ThemeContext) }
