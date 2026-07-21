@@ -334,10 +334,15 @@ export default function Home() {
     setChatHistory((p) => [...p, { role: "user", text: userMsg }])
     setChatLoading(true)
     try {
-      const reply = await chatWithStrategy(result, form, userMsg)
-      setChatHistory((p) => [...p, { role: "ai", text: reply }])
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategy: result, form, message: userMsg }),
+      })
+      const data = await res.json()
+      setChatHistory((p) => [...p, { role: "ai", text: data.reply || data.error || "No response" }])
     } catch (e: any) {
-      setChatHistory((p) => [...p, { role: "ai", text: `Error: ${e.message || "Could not process request"}` }])
+      setChatHistory((p) => [...p, { role: "ai", text: `Error: ${e.message || "Connection failed"}` }])
     } finally { setChatLoading(false) }
   }
 
