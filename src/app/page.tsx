@@ -502,8 +502,14 @@ export default function Home() {
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white"><Award size={18} className="text-blue-600" /> Industry Benchmarks</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {result.benchmarks.map((b: any, i: number) => {
-                    const yourVal = parseFloat(b.yourValue)
-                    const avgVal = parseFloat(b.industryAvg)
+                    const fmt = (v: string) => {
+                      const clean = v.replace(/[$%]/g, "")
+                      const u = (b.unit || "").replace(/[$%]/g, "")
+                      const hasSymbol = v.includes("$") || v.includes("%")
+                      return hasSymbol ? v : b.unit === "$" ? `$${clean}${u}` : `${clean}${b.unit || u}`
+                    }
+                    const yourVal = parseFloat(b.yourValue?.replace(/[$%]/g, "") || "0")
+                    const avgVal = parseFloat(b.industryAvg?.replace(/[$%]/g, "") || "0")
                     const isBetter = !isNaN(yourVal) && !isNaN(avgVal) && yourVal > avgVal
                     const ratio = !isNaN(yourVal) && !isNaN(avgVal) && avgVal > 0 ? Math.min((yourVal / avgVal) * 100, 150) : 50
                     return (
@@ -512,11 +518,11 @@ export default function Home() {
                         <div className="flex items-center justify-between mt-2">
                           <div className="text-center flex-1">
                             <p className="text-xs text-gray-400 dark:text-gray-500">You</p>
-                            <p className={`text-lg font-bold ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{b.yourValue}{!b.yourValue?.includes(b.unit) ? b.unit : ""}</p>
+                            <p className={`text-lg font-bold ${isBetter ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>{fmt(b.yourValue)}</p>
                           </div>
                           <div className="text-center flex-1">
                             <p className="text-xs text-gray-400 dark:text-gray-500">Industry Avg</p>
-                            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{b.industryAvg}{!b.industryAvg?.includes(b.unit) ? b.unit : ""}</p>
+                            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{fmt(b.industryAvg)}</p>
                           </div>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2 overflow-hidden">
