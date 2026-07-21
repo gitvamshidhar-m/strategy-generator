@@ -431,29 +431,41 @@ export default function Home() {
                     <p className="text-sm text-gray-500 dark:text-gray-400 italic mt-1">{stage.goal}</p>
                   </div>
                   <div className="divide-y dark:divide-gray-700">
-                    {stage.tactics?.map((t: any) => (
-                      <div key={t.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer" onClick={() => setDrilldown(t)}>
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-gray-900 dark:text-white">{t.title}</h3>
-                              {t.channel && <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{t.channel}</span>}
+                    {stage.tactics?.map((t: any) => {
+                      const impactColor = t.impact === "HIGH" ? "border-l-green-500" : t.impact === "MEDIUM" ? "border-l-amber-500" : "border-l-gray-400"
+                      return (
+                        <div key={t.id} className={`p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer border-l-4 ${impactColor}`} onClick={() => setDrilldown(t)}>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-gray-900 dark:text-white">{t.title}</h3>
+                                {t.channel && <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{t.channel}</span>}
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{t.description}</p>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{t.description}</p>
+                            <div className="flex gap-2 shrink-0 ml-4">
+                              <ImpactBadge impact={t.impact} />
+                              <EffortBadge effort={t.effort} />
+                            </div>
                           </div>
-                          <div className="flex gap-2 shrink-0 ml-4">
-                            <ImpactBadge impact={t.impact} />
-                            <EffortBadge effort={t.effort} />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                            <div className="md:col-span-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3">
+                              <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed"><span className="font-semibold">Why it works:</span> {t.reasoning}</p>
+                            </div>
+                            <div className="bg-white dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-lg p-3 flex flex-col justify-center">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">Est. ROI</span>
+                                <span className="text-sm font-bold text-green-600 dark:text-green-400">{t.estimatedROI?.toFixed(1)}%</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1 mt-1">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">Channel</span>
+                                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.channel || "Multi"}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-3 mt-2">
-                          <p className="text-xs text-blue-700 dark:text-blue-300"><span className="font-semibold">Why it works:</span> {t.reasoning}</p>
-                        </div>
-                        {t.estimatedROI && (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500"><TrendingUp size={12} /><span>Est. ROI: {t.estimatedROI.toFixed(1)}%</span></div>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )
