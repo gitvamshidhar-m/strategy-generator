@@ -4,13 +4,7 @@ import { useState, useRef } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
 import { generateGrowthStrategy } from "@/ai/strategy-engine"
-import { Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp, Users, DollarSign, Building, Smartphone, Share2, Globe } from "lucide-react"
-
-const channelIcons: Record<string, any> = {
-  SEO: Globe, PPC: Target, SOCIAL: Share2, EMAIL: Mail, CONTENT: Building,
-  PAID_SOCIAL: TrendingUp, INFLUENCER: Users, AFFILIATE: DollarSign, SMS: Smartphone, DISPLAY: Target,
-}
-function Mail() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> }
+import { Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp, Users, DollarSign, Smartphone } from "lucide-react"
 
 const channels = [
   { value: Channel.SEO, label: "SEO" }, { value: Channel.PPC, label: "PPC" },
@@ -20,11 +14,11 @@ const channels = [
   { value: Channel.SMS, label: "SMS" }, { value: Channel.DISPLAY, label: "Display" },
 ]
 
-const funnelMeta = {
-  awareness: { label: "Awareness", icon: "🔍", color: "blue", desc: "Top of funnel — reach new audiences" },
-  consideration: { label: "Consideration", icon: "⚖️", color: "amber", desc: "Middle of funnel — nurture interest" },
-  conversion: { label: "Conversion", icon: "🎯", color: "green", desc: "Bottom of funnel — drive action" },
-  loyalty: { label: "Loyalty", icon: "❤️", color: "purple", desc: "Post-purchase — retain & refer" },
+const funnelMeta: Record<string, { label: string; icon: string; headBg: string; headBorder: string; stageBg: string; stageBorder: string; desc: string }> = {
+  awareness: { label: "Awareness", icon: "🔍", headBg: "bg-blue-50", headBorder: "border-blue-200", stageBg: "bg-blue-50", stageBorder: "border-blue-200", desc: "Top of funnel" },
+  consideration: { label: "Consideration", icon: "⚖️", headBg: "bg-amber-50", headBorder: "border-amber-200", stageBg: "bg-amber-50", stageBorder: "border-amber-200", desc: "Middle of funnel" },
+  conversion: { label: "Conversion", icon: "🎯", headBg: "bg-green-50", headBorder: "border-green-200", stageBg: "bg-green-50", stageBorder: "border-green-200", desc: "Bottom of funnel" },
+  loyalty: { label: "Loyalty", icon: "❤️", headBg: "bg-purple-50", headBorder: "border-purple-200", stageBg: "bg-purple-50", stageBorder: "border-purple-200", desc: "Post-purchase" },
 }
 
 const funnelWidths = ["w-full", "w-3/4", "w-1/2", "w-1/3"]
@@ -142,10 +136,10 @@ export default function Home() {
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><TrendingUp size={18} className="text-blue-600" /> Marketing Funnel</h2>
             <div className="flex flex-col items-center space-y-1">
               {result.funnel?.map((stage: any, idx: number) => {
-                const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", color: "gray", desc: "" }
+                const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", stageBg: "bg-gray-50", stageBorder: "border-gray-200", headBg: "bg-gray-50", headBorder: "border-gray-200", desc: "" }
                 return (
                   <div key={stage.stage} className={`${funnelWidths[idx]} transition-all duration-500`}>
-                    <div className={`bg-${meta.color}-50 border border-${meta.color}-200 rounded-xl p-4 hover:shadow-md transition-shadow`}>
+                    <div className={`${meta.stageBg} border ${meta.stageBorder} rounded-xl p-4 hover:shadow-md transition-shadow`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xl">{meta.icon}</span>
@@ -202,7 +196,7 @@ export default function Home() {
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-600" /> Channel Priority</h2>
               <div className="space-y-3">
-                {result.channels?.sort((a: any, b: any) => b.priority - a.priority).map((c: any, i: number) => {
+                {result.channels?.slice().sort((a: any, b: any) => b.priority - a.priority).map((c: any, i: number) => {
                   const stars = "★".repeat(c.priority) + "☆".repeat(5 - c.priority)
                   const colors = ["text-blue-600", "text-green-600", "text-purple-600", "text-amber-600", "text-pink-600", "text-cyan-600", "text-red-600", "text-indigo-600"]
                   return (
@@ -220,10 +214,10 @@ export default function Home() {
           </div>
 
           {result.funnel?.map((stage: any) => {
-            const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", color: "gray", desc: "" }
+            const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", headBg: "bg-gray-50", headBorder: "border-gray-200", stageBg: "bg-gray-50", stageBorder: "border-gray-200", desc: "" }
             return (
               <div key={stage.stage} className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6 overflow-hidden">
-                <div className={`bg-${meta.color}-50 px-6 py-4 border-b`}>
+                <div className={`${meta.headBg} px-6 py-4 border-b`}>
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{meta.icon}</span>
                     <h2 className="text-xl font-bold">{meta.label}</h2>
