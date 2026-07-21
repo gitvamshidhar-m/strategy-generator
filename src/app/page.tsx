@@ -486,7 +486,7 @@ export default function Home() {
             <button onClick={toggleDark} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
               {isDark ? <Sun size={16} className="text-gray-600 dark:text-gray-300" /> : <Moon size={16} className="text-gray-600" />}
             </button>
-            <button onClick={() => setShowSettings} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+            <button onClick={() => setShowSettings(true)} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
               <Settings size={16} className="text-gray-600 dark:text-gray-300" />
             </button>
             <button onClick={() => setShowHistory(true)} className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
