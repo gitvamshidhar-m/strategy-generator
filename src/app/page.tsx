@@ -345,7 +345,7 @@ export default function Home() {
                             <h3 className="font-semibold text-gray-900 dark:text-white">{meta.label}</h3>
                             <span className="text-xs text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 px-2 py-0.5 rounded-full border dark:border-gray-600">{stage.tactics?.length || 0} tactics</span>
                           </div>
-                          <ChevronRight size={16} className="text-gray-400" />
+                          <button type="button" onClick={() => document.getElementById(`stage-${stage.stage}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition"><ChevronRight size={16} className="text-gray-400" /></button>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-2">{stage.goal}</p>
                         <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ export default function Home() {
                         </div>
                       </div>
                       {idx < (result.funnel?.length || 0) - 1 && (
-                        <div className="flex justify-center py-0.5"><ChevronRight size={14} className="text-gray-300 dark:text-gray-600 rotate-90" /></div>
+                        <button type="button" onClick={() => document.getElementById(`stage-${result.funnel[idx + 1]?.stage}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="flex justify-center py-0.5 w-full hover:bg-gray-100 dark:hover:bg-gray-700/50 transition rounded-lg"><ChevronRight size={14} className="text-gray-300 dark:text-gray-600 rotate-90" /></button>
                       )}
                     </div>
                   )
@@ -409,7 +409,7 @@ export default function Home() {
             {result.funnel?.map((stage: any) => {
               const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", headBg: "bg-gray-50 dark:bg-gray-700", headBorder: "border-gray-200 dark:border-gray-600", stageBg: "bg-gray-50 dark:bg-gray-700", stageBorder: "border-gray-200 dark:border-gray-600", desc: "" }
               return (
-                <div key={stage.stage} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 mb-6 overflow-hidden">
+                <div id={`stage-${stage.stage}`} key={stage.stage} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 mb-6 overflow-hidden">
                   <div className={`${meta.headBg} px-6 py-4 border-b ${meta.headBorder}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
