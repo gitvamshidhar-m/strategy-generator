@@ -1,1 +1,4 @@
-export const dynamic = 'force-static';
+/** @type {import('next').NextConfig} */
+const nextConfig = {}
+
+export default nextConfig
