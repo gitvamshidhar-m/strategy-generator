@@ -197,7 +197,8 @@ export default function Home() {
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-blue-600" /> Channel Priority</h2>
               <div className="space-y-3">
                 {result.channels?.slice().sort((a: any, b: any) => b.priority - a.priority).map((c: any, i: number) => {
-                  const stars = "★".repeat(c.priority) + "☆".repeat(5 - c.priority)
+                  const p = Math.min(Math.max(c.priority, 0), 5)
+                  const stars = "★".repeat(p) + "☆".repeat(5 - p)
                   const colors = ["text-blue-600", "text-green-600", "text-purple-600", "text-amber-600", "text-pink-600", "text-cyan-600", "text-red-600", "text-indigo-600"]
                   return (
                     <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
