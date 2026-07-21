@@ -10,6 +10,9 @@ export interface StrategyInput {
   targetAudience?: string
   businessStage?: string
   teamSize?: string
+  targetCPA?: number
+  targetROAS?: number
+  targetConversionRate?: number
 }
 
 export interface FunnelTactic {
@@ -144,6 +147,12 @@ Constraints:
 - Each tactic must have a "channel" field specifying which channel it belongs to
 - Write elaborate, detailed descriptions (2-3 sentences each) explaining exactly how to execute the tactic`
 
+  const kpiSection = [
+    input.targetCPA ? `Target CPA: $${input.targetCPA}` : "",
+    input.targetROAS ? `Target ROAS: ${input.targetROAS}x` : "",
+    input.targetConversionRate ? `Target Conversion Rate: ${input.targetConversionRate}%` : "",
+  ].filter(Boolean).join("\n")
+
   const userPrompt = `Client Profile:
 Industry: ${input.industry}
 Current Channels: ${input.currentChannels.join(", ") || "None"}
@@ -152,6 +161,7 @@ Primary Goal: ${input.primaryGoal}
 Target Audience: ${input.targetAudience || "Not specified"}
 Business Stage: ${input.businessStage || "Not specified"}
 Team Size: ${input.teamSize || "Not specified"}
+${kpiSection ? `\nKPI Targets:\n${kpiSection}` : ""}
 
 Generate a comprehensive growth strategy as JSON.`
 

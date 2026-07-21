@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
 import { generateGrowthStrategy, regenerateStage } from "@/ai/strategy-engine"
-import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode } from "@/lib/hooks"
+import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority } from "@/lib/utils"
 import {
   Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp,
@@ -225,6 +225,7 @@ export default function Home() {
     try {
       const res = await generateGrowthStrategy({
         industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal,
+        targetCPA: form.targetCPA, targetROAS: form.targetROAS, targetConversionRate: form.targetConversionRate,
       })
       setResult(res)
       saveHistory(form, res)
@@ -240,7 +241,7 @@ export default function Home() {
     setRegenStage(stage)
     try {
       const updated = await regenerateStage(
-        { industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal },
+        { industry: form.industry, currentChannels: form.selectedChannels, monthlyBudget: form.budget, primaryGoal: form.goal, targetCPA: form.targetCPA, targetROAS: form.targetROAS, targetConversionRate: form.targetConversionRate },
         result,
         stage
       )
@@ -304,6 +305,57 @@ export default function Home() {
                 <button onClick={() => { setResult(null); setError("") }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-medium"><RotateCcw size={14} /> New</button>
               </div>
             </div>
+
+            {/* Executive Summary + Strategy Score */}
+            {(() => {
+              const topChannel = result.channels?.slice().sort((a: any, b: any) => b.priority - a.priority)[0]
+              const topTactic = result.tactics?.slice().sort((a: any, b: any) => (b.estimatedROI || 0) - (a.estimatedROI || 0))[0]
+              const quickWins = result.tactics?.filter((t: any) => t.impact === "HIGH" && t.effort === "LOW") || []
+              const avgROI = result.tactics?.length ? result.tactics.reduce((s: number, t: any) => s + (t.estimatedROI || 0), 0) / result.tactics.length : 0
+              // Strategy Score (0-100)
+              const channelScore = Math.min((result.channels?.length || 0) * 6, 25)
+              const highImpactRatio = result.tactics?.length ? result.tactics.filter((t: any) => t.impact === "HIGH").length / result.tactics.length : 0
+              const impactScore = highImpactRatio * 25
+              const roiScore = Math.min((result.estimatedROI || 0) / 20, 25)
+              const quickWinBonus = Math.min(quickWins.length * 3, 25)
+              const totalScore = Math.min(Math.round(channelScore + impactScore + roiScore + quickWinBonus), 100)
+              const scoreColor = totalScore >= 80 ? "text-green-600" : totalScore >= 60 ? "text-amber-600" : "text-red-600"
+              const scoreBar = totalScore >= 80 ? "bg-green-500" : totalScore >= 60 ? "bg-amber-500" : "bg-red-500"
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+                  <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total Budget</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${(form.budget || 0).toLocaleString()}<span className="text-sm font-normal text-gray-400">/mo</span></p>
+                      {topChannel && <p className="text-xs text-gray-400 mt-1">Top: <span className="font-medium text-gray-600 dark:text-gray-300">{topChannel.channel}</span></p>}
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total Tactics</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{result.tactics?.length || 0}</p>
+                      {quickWins.length > 0 && <p className="text-xs text-green-600 dark:text-green-400 mt-1">{quickWins.length} quick win{quickWins.length > 1 ? "s" : ""} 🚀</p>}
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Avg. ROI</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{avgROI.toFixed(1)}%</p>
+                      {topTactic && <p className="text-xs text-gray-400 mt-1">Best: <span className="font-medium text-gray-600 dark:text-gray-300">{topTactic.title}</span></p>}
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Channels</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{result.channels?.length || 0}</p>
+                      <p className="text-xs text-gray-400 mt-1">{result.funnel?.length || 0} funnel stages</p>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide text-center">Strategy Score</p>
+                    <p className={`text-4xl font-bold text-center mt-1 ${scoreColor}`}>{totalScore}<span className="text-lg font-normal text-gray-400">/100</span></p>
+                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mt-2 overflow-hidden">
+                      <div className={`${scoreBar} h-2 rounded-full transition-all duration-1000`} style={{ width: `${totalScore}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-400 text-center mt-1">{totalScore >= 80 ? "Excellent" : totalScore >= 60 ? "Good" : "Needs Work"}</p>
+                  </div>
+                </div>
+              )
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
@@ -369,6 +421,36 @@ export default function Home() {
                 })}
               </div>
             </div>
+
+            {/* Quick Wins */}
+            {(() => {
+              const quickWins = result.tactics?.filter((t: any) => t.impact === "HIGH" && t.effort === "LOW") || []
+              if (quickWins.length === 0) return null
+              return (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl shadow-lg p-6 border border-green-200 dark:border-green-800 mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">🚀</span>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Quick Wins</h2>
+                    <span className="text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50 px-2 py-0.5 rounded-full">{quickWins.length} tactic{quickWins.length > 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {quickWins.map((t: any) => (
+                      <div key={t.id} onClick={() => setDrilldown(t)} className="bg-white dark:bg-gray-700 rounded-xl p-4 border border-green-200 dark:border-green-700 cursor-pointer hover:shadow-md transition">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t.title}</h3>
+                          <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded font-medium">HIGH</span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{t.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          {t.channel && <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-600 px-1.5 py-0.5 rounded">{t.channel}</span>}
+                          {t.estimatedROI && <span className="text-[10px] text-green-600 dark:text-green-400 font-medium">{t.estimatedROI.toFixed(1)}% ROI</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
@@ -439,6 +521,7 @@ export default function Home() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-gray-900 dark:text-white">{t.title}</h3>
+                                {t.impact === "LOW" && <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-medium">⚠️ Review</span>}
                                 {t.channel && <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{t.channel}</span>}
                               </div>
                               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{t.description}</p>
@@ -470,6 +553,46 @@ export default function Home() {
                 </div>
               )
             })}
+
+            {/* Content Calendar */}
+            {(() => {
+              const phases = result.timeline?.phases || []
+              if (phases.length === 0) return null
+              let currentMonth = new Date()
+              return (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 mb-8">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white"><Calendar size={18} className="text-blue-600" /> Content Calendar</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {phases.map((phase: any, idx: number) => {
+                      const start = new Date(currentMonth)
+                      currentMonth.setMonth(currentMonth.getMonth() + Math.max(phase.duration || 1, 1))
+                      const end = new Date(currentMonth)
+                      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                      const phaseMonths: string[] = []
+                      const m = new Date(start)
+                      while (m <= end) { phaseMonths.push(`${monthNames[m.getMonth()]} ${m.getFullYear()}`); m.setMonth(m.getMonth() + 1) }
+                      const phaseColors = ["border-t-blue-500 bg-blue-50 dark:bg-blue-900/20", "border-t-green-500 bg-green-50 dark:bg-green-900/20", "border-t-purple-500 bg-purple-50 dark:bg-purple-900/20", "border-t-amber-500 bg-amber-50 dark:bg-amber-900/20"]
+                      return (
+                        <div key={idx} className={`border-t-4 ${phaseColors[idx % phaseColors.length]} rounded-xl p-4`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{phase.name}</h3>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 px-2 py-0.5 rounded border dark:border-gray-600">{phase.duration}w</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-2">{phaseMonths.join(" – ")}</p>
+                          <div className="space-y-1">
+                            {phase.tactics?.slice(0, 3).map((tid: string) => {
+                              const found = result.tactics?.find((t: any) => t.id === tid)
+                              return found ? <div key={tid} className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span><span className="text-[11px] text-gray-600 dark:text-gray-400 truncate">{found.title}</span></div> : null
+                            })}
+                            {(phase.tactics?.length || 0) > 3 && <p className="text-[10px] text-gray-400 pl-3">+{(phase.tactics?.length || 0) - 3} more</p>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
 
             <div className="text-center py-8 text-gray-400 dark:text-gray-600 text-xs">
               <p>Strategy generated by AI &middot; Review before implementing</p>
@@ -544,6 +667,25 @@ export default function Home() {
                   <option value="retention">❤️ Customer Retention</option>
                   <option value="growth">📈 Overall Growth</option>
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <details className="group">
+                  <summary className="text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 transition">⚡ KPI Targets (optional)</summary>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target CPA ($)</label>
+                      <input type="number" value={form.targetCPA || ""} onChange={(e) => updateForm({ targetCPA: e.target.value ? Number(e.target.value) : undefined })} min={0} step={1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 25" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target ROAS (x)</label>
+                      <input type="number" value={form.targetROAS || ""} onChange={(e) => updateForm({ targetROAS: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 4" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Target Conv. Rate (%)</label>
+                      <input type="number" value={form.targetConversionRate || ""} onChange={(e) => updateForm({ targetConversionRate: e.target.value ? Number(e.target.value) : undefined })} min={0} step={0.1} className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white text-sm" placeholder="e.g. 3.5" />
+                    </div>
+                  </div>
+                </details>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Current Channels</label>
