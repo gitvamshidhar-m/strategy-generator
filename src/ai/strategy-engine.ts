@@ -12,8 +12,27 @@ export interface StrategyInput {
   teamSize?: string
 }
 
+export interface FunnelTactic {
+  id: string
+  title: string
+  description: string
+  reasoning: string
+  effort: string
+  impact: string
+  estimatedROI: number
+  channel: string
+}
+
+export interface FunnelStage {
+  stage: "awareness" | "consideration" | "conversion" | "loyalty"
+  label: string
+  goal: string
+  tactics: FunnelTactic[]
+}
+
 export interface GeneratedStrategy {
   channels: { channel: string; priority: number; budgetAllocation: number }[]
+  funnel: FunnelStage[]
   tactics: {
     id: string
     title: string
@@ -22,6 +41,7 @@ export interface GeneratedStrategy {
     effort: string
     impact: string
     estimatedROI: number
+    channel: string
   }[]
   timeline: { phases: { name: string; duration: number; tactics: string[] }[] }
   reasoning: string
@@ -35,15 +55,43 @@ export async function generateGrowthStrategy(
     throw new Error("GROQ_API_KEY environment variable is not set")
   }
 
-  const systemPrompt = `You are a growth strategy expert for agencies. Generate a JSON marketing strategy.
+  const systemPrompt = `You are a growth strategy expert for agencies. Generate a JSON marketing strategy organized by marketing funnel stages.
 
 Return ONLY valid JSON with this structure:
 {
   "channels": [
     {"channel": "STRING", "priority": NUMBER, "budgetAllocation": NUMBER}
   ],
+  "funnel": [
+    {
+      "stage": "awareness",
+      "label": "Awareness",
+      "goal": "string describing what this stage aims to achieve for this client",
+      "tactics": [
+        {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING"}
+      ]
+    },
+    {
+      "stage": "consideration",
+      "label": "Consideration",
+      "goal": "string",
+      "tactics": [...]
+    },
+    {
+      "stage": "conversion",
+      "label": "Conversion",
+      "goal": "string",
+      "tactics": [...]
+    },
+    {
+      "stage": "loyalty",
+      "label": "Loyalty",
+      "goal": "string",
+      "tactics": [...]
+    }
+  ],
   "tactics": [
-    {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "STRING", "impact": "STRING", "estimatedROI": NUMBER}
+    {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "STRING", "impact": "STRING", "estimatedROI": NUMBER, "channel": "STRING"}
   ],
   "timeline": {
     "phases": [
@@ -56,8 +104,9 @@ Return ONLY valid JSON with this structure:
 
 Constraints:
 - Allocate 100% budget across at least 3 channels
-- Mix awareness/consideration/conversion tactics
-- Include high, medium, and low effort tactics`
+- Include at least 1-2 tactics per funnel stage (4 stages total)
+- Include high, medium, and low effort tactics
+- Each tactic must have a "channel" field specifying which channel it belongs to`
 
   const userPrompt = `Client Profile:
 Industry: ${input.industry}

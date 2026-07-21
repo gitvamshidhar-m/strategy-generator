@@ -57,19 +57,34 @@ export default function Home() {
     }
   }
 
+  const funnelIcons: Record<string, string> = {
+    awareness: "🔍",
+    consideration: "⚖️",
+    conversion: "🎯",
+    loyalty: "❤️",
+  }
+
+  const funnelColors: Record<string, string> = {
+    awareness: "border-t-blue-400",
+    consideration: "border-t-amber-400",
+    conversion: "border-t-green-400",
+    loyalty: "border-t-purple-400",
+  }
+
   if (result) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">Your Growth Strategy</h1>
             <button onClick={() => { setResult(null); setError("") }} className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow hover:shadow-md transition">
               <RotateCcw size={16} /> New Strategy
             </button>
           </div>
+
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <p className="text-gray-700 mb-4">{result.reasoning}</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Budget Allocation</h3>
                 {result.channels?.map((c: any, i: number) => (
@@ -80,24 +95,49 @@ export default function Home() {
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Metrics</h3>
-                <p className="text-sm">Tactics: <span className="font-medium">{result.tactics?.length || 0}</span></p>
+                <p className="text-sm">Total Tactics: <span className="font-medium">{result.tactics?.length || 0}</span></p>
                 <p className="text-sm">Est. ROI: <span className="font-medium text-green-600">{result.estimatedROI?.toFixed(1)}%</span></p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">Funnel Coverage</h3>
+                {result.funnel?.map((fs: any) => (
+                  <p key={fs.stage} className="text-sm">{funnelIcons[fs.stage]} {fs.label}: {fs.tactics?.length || 0} tactics</p>
+                ))}
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Tactics</h2>
-            {result.tactics?.map((t: any) => (
-              <div key={t.id} className="border rounded-lg p-4 mb-3 hover:shadow transition">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold">{t.title}</h3>
-                  <div className="flex gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.impact === "HIGH" ? "bg-green-100 text-green-800" : t.impact === "MEDIUM" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800"}`}>{t.impact}</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.effort === "LOW" ? "bg-blue-100 text-blue-800" : t.effort === "MEDIUM" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800"}`}>{t.effort}</span>
+
+          <div className="space-y-6">
+            {result.funnel?.map((stage: any) => (
+              <div key={stage.stage} className={`bg-white rounded-xl shadow-lg border-t-4 ${funnelColors[stage.stage]} overflow-hidden`}>
+                <div className="p-6 pb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{funnelIcons[stage.stage]}</span>
+                    <h2 className="text-xl font-bold">{stage.label}</h2>
                   </div>
+                  <p className="text-sm text-gray-500 italic">{stage.goal}</p>
                 </div>
-                <p className="text-sm text-gray-600 mb-1">{t.description}</p>
-                <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">{t.reasoning}</p>
+                {stage.tactics?.map((t: any) => {
+                  const impactColor = t.impact === "HIGH" ? "bg-green-100 text-green-800" : t.impact === "MEDIUM" ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800"
+                  const effortColor = t.effort === "LOW" ? "bg-blue-100 text-blue-800" : t.effort === "MEDIUM" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800"
+                  return (
+                    <div key={t.id} className="mx-6 mb-4 p-4 border rounded-lg hover:shadow transition">
+                      <div className="flex justify-between items-start mb-1">
+                        <div>
+                          <h3 className="font-semibold">{t.title}</h3>
+                          {t.channel && <span className="text-xs text-gray-400">{t.channel}</span>}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${impactColor}`}>{t.impact}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${effortColor}`}>{t.effort}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">{t.description}</p>
+                      <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">{t.reasoning}</p>
+                      <p className="text-xs text-gray-400 mt-1">ROI: {t.estimatedROI?.toFixed(1)}%</p>
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>
