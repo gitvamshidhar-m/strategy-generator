@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
-import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT } from "@/ai/strategy-engine"
+import { generateGrowthStrategy, regenerateStage, generateSWOT } from "@/ai/strategy-engine"
 import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority, downloadJSON, downloadCSV } from "@/lib/utils"
 import {
