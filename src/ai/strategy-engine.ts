@@ -48,6 +48,41 @@ export interface GeneratedStrategy {
   estimatedROI: number
 }
 
+export async function regenerateStage(
+  input: StrategyInput,
+  existingStrategy: GeneratedStrategy,
+  stageToRegen: string
+): Promise<FunnelStage> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY environment variable is not set")
+
+  const systemPrompt = `You are a growth strategy expert. Given an existing strategy, regenerate ONLY the "${stageToRegen}" funnel stage.
+
+Return ONLY valid JSON with this structure:
+{
+  "stage": "${stageToRegen}",
+  "label": "string",
+  "goal": "string",
+  "tactics": [
+    {"id": "STRING", "title": "STRING", "description": "STRING", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING"}
+  ]
+}
+
+Provide 1-3 new tactics for this stage. Do NOT repeat the existing tactic IDs. Use different approaches.`
+
+  const userPrompt = `Industry: ${input.industry}, Budget: $${input.monthlyBudget}, Goal: ${input.primaryGoal}
+Existing channels: ${input.currentChannels.join(", ") || "None"}
+Regenerate stage: ${stageToRegen}`
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], temperature: 0.7, response_format: { type: "json_object" } }),
+  })
+  if (!res.ok) throw new Error(`Groq API error: ${res.status}`)
+  const data = await res.json()
+  return JSON.parse(data.choices[0].message.content)
+}
+
 export async function generateGrowthStrategy(
   input: StrategyInput
 ): Promise<GeneratedStrategy> {
