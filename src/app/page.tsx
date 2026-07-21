@@ -336,8 +336,9 @@ export default function Home() {
     try {
       const reply = await chatWithStrategy(result, form, userMsg)
       setChatHistory((p) => [...p, { role: "ai", text: reply }])
-    } catch { setChatHistory((p) => [...p, { role: "ai", text: "Sorry, I couldn't process that. Try again." }]) }
-    finally { setChatLoading(false) }
+    } catch (e: any) {
+      setChatHistory((p) => [...p, { role: "ai", text: `Error: ${e.message || "Could not process request"}` }])
+    } finally { setChatLoading(false) }
   }
 
   const handleSWOT = async () => {

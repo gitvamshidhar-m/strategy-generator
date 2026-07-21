@@ -167,10 +167,12 @@ Channels: ${strategy.channels?.map((c: any) => `${c.channel} (${c.budgetAllocati
 Total tactics: ${strategy.tactics?.length || 0}
 Estimated ROI: ${strategy.estimatedROI}%`
 
-  const system = `You are an AI strategy consultant. You have access to the user's generated strategy. Answer their questions helpfully. Be specific and reference their strategy data. Keep answers concise but thorough. If they ask about executing a tactic, provide actionable advice. If they ask "what if" scenarios, explain the tradeoffs.`
+  const system = `You are an AI strategy consultant. You have access to the user's generated strategy. Answer their questions helpfully. Be specific and reference their strategy data. Keep answers concise but thorough. If they ask about executing a tactic, provide actionable advice. If they ask "what if" scenarios, explain the tradeoffs.
 
-  const content = await groqChat(system, `${context}\n\nUser question: ${message}`, 0.5, false)
-  return content
+Return ONLY valid JSON with a single field "reply" containing your answer.`
+
+  const content = await groqChat(system, `${context}\n\nUser question: ${message}`, 0.5, true)
+  try { const parsed = JSON.parse(content); return parsed.reply || parsed.response || parsed.answer || content } catch { return content }
 }
 
 export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
