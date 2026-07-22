@@ -533,12 +533,12 @@ export default function Home() {
                     <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Budget Allocation</h2>
                     <div className="flex items-center gap-2">
                       {!editingBudget && !optimizedBudget && (
-                        <button onClick={handleOptimizeBudget} disabled={optimizingBudget} className="text-xs text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
-                          <BrainCircuit size={12} /> {optimizingBudget ? "Optimizing..." : "Optimize"}
+                        <button onClick={handleOptimizeBudget} disabled={optimizingBudget} className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 px-2 py-1 rounded-lg transition flex items-center gap-1 disabled:opacity-50">
+                          <BrainCircuit size={12} /> {optimizingBudget ? "Optimizing..." : "Optimize AI"}
                         </button>
                       )}
                       {optimizedBudget && (
-                        <button onClick={applyOptimizedBudget} className="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Apply AI</button>
+                        <button onClick={applyOptimizedBudget} className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded-lg transition flex items-center gap-1"><BrainCircuit size={12} /> Apply AI</button>
                       )}
                       <button onClick={() => { if (!editingBudget) { const alloc: Record<string, number> = {}; result.channels?.forEach((ch: any) => { alloc[ch.channel] = ch.budgetAllocation }); setEditAllocations(alloc) }; setEditingBudget(!editingBudget); if (editingBudget) setOptimizedBudget(null) }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{editingBudget ? "Done" : "Adjust"}</button>
                     </div>
