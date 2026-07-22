@@ -232,7 +232,7 @@ export default function Home() {
 
   useEffect(() => {
     if (result) {
-      try { const saved = localStorage.getItem(`strategy-notes-${form.industry}-${form.budget}-${form.goal}`); if (saved) setStrategyNotes(saved) else setStrategyNotes("") } catch {}
+      try { const saved = localStorage.getItem(`strategy-notes-${form.industry}-${form.budget}-${form.goal}`); if (saved) { setStrategyNotes(saved) } else { setStrategyNotes("") } } catch {}
     }
   }, [result, form.industry, form.budget, form.goal])
 
