@@ -990,7 +990,7 @@ export default function Home() {
     return <LoadingSkeleton />
   }
 
-  if (showCompare && compareTarget) {
+  if (showCompare && compareTarget && result) {
     return (
       <>
         <CompareView strategyA={{ form, result }} strategyB={compareTarget} onClose={() => { setShowCompare(false); setCompareTarget(null) }} />
