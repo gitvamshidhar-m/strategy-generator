@@ -342,7 +342,7 @@ export default function Home() {
   }
 
   const handleChat = async () => {
-    if (!chatMsg.trim()) return
+    if (!chatMsg.trim() || !result) return
     const userMsg = chatMsg.trim()
     setChatMsg("")
     setChatHistory((p) => [...p, { role: "user", text: userMsg }])
