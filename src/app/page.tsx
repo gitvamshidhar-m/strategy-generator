@@ -384,7 +384,16 @@ export default function Home() {
   const loadFromHistory = (entry: SavedStrategy) => {
     const { form: f, result: r } = entry
     updateForm(f)
-    setResult(r)
+    setResult({
+      channels: r.channels || [],
+      funnel: r.funnel || [],
+      tactics: r.tactics || [],
+      timeline: r.timeline || { phases: [] },
+      reasoning: r.reasoning || "",
+      estimatedROI: r.estimatedROI || 0,
+      benchmarks: r.benchmarks || [],
+      channelRoadmap: r.channelRoadmap || [],
+    })
     setStrategySessionId(`hist-${Date.now().toString(36)}`)
   }
 

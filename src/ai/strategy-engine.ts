@@ -79,7 +79,17 @@ Generate a comprehensive growth strategy as JSON.`
 
   try {
     const content = await groqChat(systemPrompt, userPrompt)
-    return JSON.parse(content)
+    const parsed = JSON.parse(content)
+    return {
+      channels: parsed.channels || [],
+      funnel: parsed.funnel || [],
+      tactics: parsed.tactics || [],
+      timeline: parsed.timeline || { phases: [] },
+      reasoning: parsed.reasoning || "",
+      estimatedROI: parsed.estimatedROI || 0,
+      benchmarks: parsed.benchmarks || [],
+      channelRoadmap: parsed.channelRoadmap || [],
+    }
   } catch (error) {
     console.error("Error generating strategy:", error)
     throw new Error("Failed to generate growth strategy")
@@ -104,7 +114,8 @@ Existing channels: ${input.currentChannels.join(", ") || "None"}
 Regenerate stage: ${stageToRegen}`
 
   const content = await groqChat(systemPrompt, userPrompt)
-  return JSON.parse(content)
+  const parsed = JSON.parse(content)
+  return { stage: parsed.stage || stageToRegen, label: parsed.label || "", goal: parsed.goal || "", tactics: parsed.tactics || [] }
 }
 
 export async function chatWithStrategy(strategy: GeneratedStrategy, form: FormState, message: string): Promise<string> {
