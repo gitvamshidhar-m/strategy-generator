@@ -1228,7 +1228,7 @@ export default function Home() {
         </div>
       </div>
 {showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onRename={renameHistory} onClose={() => setShowHistory(false)} />}
-      {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />
+      {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />}
     </>
   )
 }
