@@ -318,6 +318,7 @@ export default function Home() {
   }
 
   const handleRegenStage = async (stage: string) => {
+    if (!result) return
     setRegenStage(stage)
     try {
       const updated = await regenerateStage(
@@ -355,6 +356,7 @@ export default function Home() {
   }
 
   const handleSWOT = async () => {
+    if (!result) return
     setSwotLoading(true)
     try {
       const data = await generateSWOT(form.industry, form.competitors || "", result)
@@ -417,6 +419,7 @@ export default function Home() {
   const totalTactics = result?.tactics?.length || 0
 
   const handleOptimizeBudget = async () => {
+    if (!result) return
     setOptimizingBudget(true)
     try {
       const res = await optimizeBudget(result, form)
