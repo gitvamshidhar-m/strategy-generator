@@ -366,12 +366,14 @@ export default function Home() {
   }
 
   const handleCopy = () => {
+    if (!result) return
     copyStrategyToClipboard(result, form)
     setCopyMsg("Copied!")
     setTimeout(() => setCopyMsg(""), 2000)
   }
 
   const handleShare = () => {
+    if (!result) return
     const url = generateShareUrl(result, form)
     navigator.clipboard.writeText(url).then(() => {
       setCopyMsg("Share link copied!")
@@ -455,9 +457,9 @@ export default function Home() {
                 {copyMsg && <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full flex items-center">{copyMsg}</span>}
                 <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Copy size={14} /> Copy</button>
                 <button onClick={handleShare} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Share2 size={14} /> Share</button>
-                <button onClick={() => exportPDF(result, form, branding)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Download size={14} /> PDF</button>
-                <button onClick={() => downloadJSON(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">JSON</button>
-                <button onClick={() => downloadCSV(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">CSV</button>
+                <button onClick={() => result && exportPDF(result, form, branding)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Download size={14} /> PDF</button>
+                <button onClick={() => result && downloadJSON(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">JSON</button>
+                <button onClick={() => result && downloadCSV(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">CSV</button>
                 <button onClick={() => setShowBoard(!showBoard)} className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition text-sm font-medium min-h-[44px] ${showBoard ? "bg-blue-600 text-white border-blue-600" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"}`}>{showBoard ? <ListIcon size={14} /> : <LayoutDashboard size={14} />} {showBoard ? "List" : "Board"}</button>
                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><History size={14} /></button>
                 <button onClick={() => { setResult(null); setError("") }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-medium"><RotateCcw size={14} /> New</button>
