@@ -401,6 +401,14 @@ export default function Home() {
     })
   }
 
+  const setStatus = (id: string, status: string) => {
+    setTacticStatus((prev) => {
+      const updated = { ...prev, [id]: status }
+      try { if (strategySessionId) localStorage.setItem(`strategy-progress-${strategySessionId}`, JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }
+
   const countByStatus = (status: string) => Object.values(tacticStatus).filter((v) => v === status).length
   const totalTactics = result?.tactics?.length || 0
 
@@ -749,6 +757,7 @@ export default function Home() {
                 filterImpact={filterImpact}
                 filterEffort={filterEffort}
                 cycleStatus={cycleStatus}
+                setStatus={setStatus}
                 countByStatus={countByStatus}
                 totalTactics={totalTactics}
               />
