@@ -1,8 +1,7 @@
 "use client"
 
-import { Channel } from "@/types"
+import { Channel, FormState, BrandingConfig } from "@/types"
 import { INDUSTRIES } from "@/data/tactics"
-import { FormState, BrandingConfig } from "@/lib/hooks"
 import { Loader2, Sparkles, Moon, Sun, Settings, History } from "lucide-react"
 
 const channels = [
