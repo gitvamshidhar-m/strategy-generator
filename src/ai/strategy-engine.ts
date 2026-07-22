@@ -183,6 +183,32 @@ export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, m
   }
 }
 
+export async function optimizeBudget(strategy: GeneratedStrategy, form: any): Promise<{ channel: string; budgetAllocation: number; reasoning: string }[]> {
+  const system = `You are a budget optimization expert. Given a marketing strategy's current budget allocation, suggest a better allocation that maximizes ROI.
+Return ONLY valid JSON with this structure:
+{
+  "optimizations": [
+    {"channel": "STRING", "budgetAllocation": NUMBER (percentage), "reasoning": "STRING (1 sentence why this change helps)"}
+  ]
+}
+Total must add up to 100%. Keep the same channels, just reallocate percentages.`
+
+  const user = `Industry: ${form.industry}
+Current channels: ${(strategy.channels || []).map((c: any) => `${c.channel}: ${c.budgetAllocation}%`).join(", ")}
+Budget: $${form.budget}/mo
+Goal: ${form.goal}
+Strategy style: ${form.strategyStyle || "balanced"}
+Primary goal: ${form.goal}
+Target CPA: ${form.targetCPA || "not set"}
+Target ROAS: ${form.targetROAS || "not set"}
+
+Suggest optimized budget allocation with reasoning.`
+
+  const content = await groqChat(system, user, 0.5)
+  const parsed = JSON.parse(content)
+  return parsed.optimizations || parsed
+}
+
 export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
   const system = `You are a strategy analyst. Given a strategy and competitor info, generate a SWOT analysis. Return ONLY valid JSON:
 {

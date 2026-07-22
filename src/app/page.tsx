@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
-import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT } from "@/ai/strategy-engine"
+import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT, optimizeBudget } from "@/ai/strategy-engine"
 import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority, downloadJSON, downloadCSV } from "@/lib/utils"
 import {
   Loader2, Sparkles, RotateCcw, Download, BarChart3, Calendar, ChevronRight, Target, TrendingUp,
   Users, DollarSign, Smartphone, Moon, Sun, History, Copy, Share2, X, Settings, Eye, GitCompare,
   Trash2, Plus, RefreshCw, ChevronLeft, Save, MessageCircle, CheckSquare, Award,
+  LayoutDashboard, List as ListIcon, BrainCircuit,
 } from "lucide-react"
 
 const channels = [
@@ -236,6 +237,11 @@ export default function Home() {
   const [editingBudget, setEditingBudget] = useState(false)
   const [editAllocations, setEditAllocations] = useState<Record<string, number>>({})
   const resultsRef = useRef<HTMLDivElement>(null)
+  const [tacticStatus, setTacticStatus] = useState<Record<string, string>>({})
+  const [showBoard, setShowBoard] = useState(false)
+  const [optimizedBudget, setOptimizedBudget] = useState<any>(null)
+  const [optimizingBudget, setOptimizingBudget] = useState(false)
+  const progressKey = useRef("")
 
   useEffect(() => {
     const shared = parseShareUrl()
@@ -247,6 +253,14 @@ export default function Home() {
       try { const saved = localStorage.getItem(`strategy-notes-${form.industry}-${form.budget}-${form.goal}`); if (saved) setStrategyNotes(saved) } catch {}
     }
   }, [result])
+
+  useEffect(() => {
+    if (result) {
+      const key = `strategy-progress-${form.industry}-${form.budget}-${form.goal}`
+      progressKey.current = key
+      try { const saved = localStorage.getItem(key); if (saved) setTacticStatus(JSON.parse(saved)); else setTacticStatus({}) } catch {}
+    }
+  }, [result, form.industry, form.budget, form.goal])
 
   const industryName = INDUSTRIES.find((i) => i.id === form.industry)?.name || form.industry
 
@@ -381,6 +395,40 @@ export default function Home() {
     }
   }
 
+  const cycleStatus = (id: string) => {
+    setTacticStatus((prev) => {
+      const cur = prev[id] || "todo"
+      const next = cur === "todo" ? "in_progress" : cur === "in_progress" ? "done" : "todo"
+      const updated = { ...prev, [id]: next }
+      try { localStorage.setItem(progressKey.current, JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }
+
+  const countByStatus = (status: string) => Object.values(tacticStatus).filter((v) => v === status).length
+  const totalTactics = result?.tactics?.length || 0
+
+  const handleOptimizeBudget = async () => {
+    setOptimizingBudget(true)
+    try {
+      const res = await optimizeBudget(result, form)
+      setOptimizedBudget(res)
+    } catch { setError("Failed to optimize budget") }
+    finally { setOptimizingBudget(false) }
+  }
+
+  const applyOptimizedBudget = () => {
+    if (!optimizedBudget) return
+    setResult((prev: any) => ({
+      ...prev,
+      channels: prev.channels.map((c: any) => {
+        const opt = optimizedBudget.find((o: any) => o.channel === c.channel)
+        return opt ? { ...c, budgetAllocation: opt.budgetAllocation } : c
+      })
+    }))
+    setOptimizedBudget(null)
+  }
+
   // ── RESULTS VIEW ──
   if (result && !showCompare) {
     return (
@@ -396,6 +444,7 @@ export default function Home() {
                 <button onClick={() => exportPDF(result, form, branding)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]"><Download size={14} /> PDF</button>
                 <button onClick={() => downloadJSON(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">JSON</button>
                 <button onClick={() => downloadCSV(result, form)} className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300 min-h-[44px]">CSV</button>
+                <button onClick={() => setShowBoard(!showBoard)} className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition text-sm font-medium min-h-[44px] ${showBoard ? "bg-blue-600 text-white border-blue-600" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"}`}>{showBoard ? <ListIcon size={14} /> : <LayoutDashboard size={14} />} {showBoard ? "List" : "Board"}</button>
                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium text-gray-700 dark:text-gray-300"><History size={14} /></button>
                 <button onClick={() => { setResult(null); setError("") }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-medium"><RotateCcw size={14} /> New</button>
               </div>
@@ -427,6 +476,22 @@ export default function Home() {
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
                       <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total Tactics</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{result.tactics?.length || 0}</p>
+                      {(() => {
+                        const done = countByStatus("done")
+                        const inProg = countByStatus("in_progress")
+                        if (totalTactics === 0) return null
+                        return (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-[10px] text-gray-400 mb-0.5">
+                              <span>{done}/{totalTactics} done · {inProg} in progress</span>
+                              <span>{Math.round((done / totalTactics) * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(done / totalTactics) * 100}%` }}></div>
+                            </div>
+                          </div>
+                        )
+                      })()}
                       {quickWins.length > 0 && <p className="text-xs text-green-600 dark:text-green-400 mt-1">{quickWins.length} quick win{quickWins.length > 1 ? "s" : ""} 🚀</p>}
                     </div>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
@@ -464,9 +529,19 @@ export default function Home() {
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Budget Allocation</h2>
-                  <button onClick={() => { if (!editingBudget) { const alloc: Record<string, number> = {}; result.channels?.forEach((ch: any) => { alloc[ch.channel] = ch.budgetAllocation }); setEditAllocations(alloc) }; setEditingBudget(!editingBudget) }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{editingBudget ? "Done" : "Adjust"}</button>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white"><Target size={18} className="text-blue-600" /> Budget Allocation</h2>
+                    <div className="flex items-center gap-2">
+                      {!editingBudget && !optimizedBudget && (
+                        <button onClick={handleOptimizeBudget} disabled={optimizingBudget} className="text-xs text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+                          <BrainCircuit size={12} /> {optimizingBudget ? "Optimizing..." : "Optimize"}
+                        </button>
+                      )}
+                      {optimizedBudget && (
+                        <button onClick={applyOptimizedBudget} className="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Apply AI</button>
+                      )}
+                      <button onClick={() => { if (!editingBudget) { const alloc: Record<string, number> = {}; result.channels?.forEach((ch: any) => { alloc[ch.channel] = ch.budgetAllocation }); setEditAllocations(alloc) }; setEditingBudget(!editingBudget); if (editingBudget) setOptimizedBudget(null) }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{editingBudget ? "Done" : "Adjust"}</button>
+                    </div>
                 </div>
                 <div className="space-y-3">
                   {(editingBudget ? Object.entries(editAllocations) : result.channels?.map((c: any) => [c.channel, c.budgetAllocation] as [string, number]))?.map(([channel, alloc]: [string, number], i: number) => (
@@ -492,6 +567,28 @@ export default function Home() {
                     <div className="flex justify-between text-xs text-gray-400 pt-1">
                       <span>Total: {Object.values(editAllocations).reduce((s, v) => s + v, 0)}%</span>
                       {Object.values(editAllocations).reduce((s, v) => s + v, 0) !== 100 && <span className="text-amber-500">Should add up to 100%</span>}
+                    </div>
+                  )}
+                  {optimizedBudget && !editingBudget && (
+                    <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800 space-y-2">
+                      <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1"><BrainCircuit size={12} /> AI Suggested Allocation</p>
+                      {optimizedBudget.map((o: any, i: number) => {
+                        const current = result.channels?.find((c: any) => c.channel === o.channel)
+                        const diff = current ? o.budgetAllocation - current.budgetAllocation : 0
+                        return (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600 dark:text-gray-400">{o.channel}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-800 dark:text-gray-200 font-medium">{o.budgetAllocation}%</span>
+                              {diff !== 0 && (
+                                <span className={`${diff > 0 ? "text-green-500" : "text-red-500"}`}>
+                                  {diff > 0 ? "+" : ""}{diff}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -710,7 +807,58 @@ export default function Home() {
               </div>
             </div>
 
-            {result.funnel?.map((stage: any) => {
+            {/* ── TOGGLE: LIST VIEW vs KANBAN BOARD ── */}
+            {showBoard ? (
+              <div className="mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { status: "todo", label: "To Do", color: "border-t-gray-400", bg: "bg-gray-50 dark:bg-gray-800/50", icon: "○", count: totalTactics - countByStatus("in_progress") - countByStatus("done") },
+                    { status: "in_progress", label: "In Progress", color: "border-t-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20", icon: "◎", count: countByStatus("in_progress") },
+                    { status: "done", label: "Done", color: "border-t-green-500", bg: "bg-green-50 dark:bg-green-900/20", icon: "●", count: countByStatus("done") },
+                  ].map((col) => {
+                    const columnTactics = (result.tactics || []).filter((t: any) => {
+                      const st = tacticStatus[t.id] || "todo"
+                      if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
+                      if (filterChannel && (t.channel || "").toUpperCase() !== filterChannel.toUpperCase()) return false
+                      if (filterImpact && (t.impact || "").toUpperCase() !== filterImpact.toUpperCase()) return false
+                      if (filterEffort && (t.effort || "").toUpperCase() !== filterEffort.toUpperCase()) return false
+                      return st === col.status
+                    })
+                    return (
+                      <div key={col.status} className={`border-t-4 ${col.color} ${col.bg} rounded-xl p-4 min-h-[200px]`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-1.5"><span>{col.icon}</span> {col.label}</h3>
+                          <span className="text-xs text-gray-400 bg-white dark:bg-gray-700 px-2 py-0.5 rounded-full border dark:border-gray-600">{columnTactics.length}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {columnTactics.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No tactics</p>}
+                          {columnTactics.map((t: any) => {
+                            const imp = (t.impact || "").toUpperCase()
+                            const stageMeta = funnelMeta[result.funnel?.find((s: any) => s.tactics?.some((st: any) => st.id === t.id))?.stage || ""] || {}
+                            return (
+                              <div key={t.id} className="bg-white dark:bg-gray-700 rounded-xl p-3 border border-gray-100 dark:border-gray-600 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => cycleStatus(t.id)}>
+                                <div className="flex items-start justify-between mb-1">
+                                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{t.title}</p>
+                                  <span className="text-[10px] text-gray-400">{stageMeta.icon || "📌"}</span>
+                                </div>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">{t.description}</p>
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <ImpactBadge impact={t.impact} />
+                                  <EffortBadge effort={t.effort} />
+                                  {t.channel && <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-600 px-1.5 py-0.5 rounded">{t.channel}</span>}
+                                  {t.estimatedROI && <span className="text-[10px] text-green-600 dark:text-green-400 font-medium">{t.estimatedROI.toFixed(0)}%</span>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              result.funnel?.map((stage: any) => {
               const meta = funnelMeta[stage.stage as keyof typeof funnelMeta] || { label: stage.stage, icon: "📌", headBg: "bg-gray-50 dark:bg-gray-700", headBorder: "border-gray-200 dark:border-gray-600", stageBg: "bg-gray-50 dark:bg-gray-700", stageBorder: "border-gray-200 dark:border-gray-600", desc: "" }
               const filteredTactics = (stage.tactics || []).filter((t: any) => {
                 if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
@@ -739,11 +887,16 @@ export default function Home() {
                     {filteredTactics.map((t: any) => {
                       const imp = (t.impact || "").toUpperCase()
                       const impactColor = imp === "HIGH" ? "border-l-green-500" : imp === "MEDIUM" ? "border-l-amber-500" : "border-l-gray-400"
+                      const st = tacticStatus[t.id] || "todo"
+                      const statusDots: Record<string, string> = { todo: "text-gray-300 dark:text-gray-600", in_progress: "text-blue-500", done: "text-green-500" }
                       return (
                         <div key={t.id} className={`p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer border-l-4 ${impactColor}`} onClick={() => setDrilldown(t)}>
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
+                                <button onClick={(e) => { e.stopPropagation(); cycleStatus(t.id) }} className={`text-xs ${statusDots[st]} hover:scale-125 transition`} title={`Status: ${st}. Click to cycle.`}>
+                                  {st === "todo" ? "○" : st === "in_progress" ? "◐" : "●"}
+                                </button>
                                 <h3 className="font-semibold text-gray-900 dark:text-white">{t.title}</h3>
                                 {(t.impact || "").toUpperCase() === "LOW" && <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-1.5 py-0.5 rounded font-medium">⚠️ Review</span>}
                                 {t.channel && <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{t.channel}</span>}
@@ -789,7 +942,8 @@ export default function Home() {
                   </div>
                 </div>
               )
-            })}
+            })
+            )}
 
             {/* Channel Maturity Roadmap */}
             {result.channelRoadmap && result.channelRoadmap.length > 0 && (
