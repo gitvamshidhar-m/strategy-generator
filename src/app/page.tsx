@@ -150,7 +150,7 @@ function HistoryPanel({ history, onLoad, onCompare, onRemove, onRename, onClose 
   )
 }
 
-function CompareView({ strategyA, strategyB, onClose }: { strategyA: SavedStrategy; strategyB: SavedStrategy; onClose: () => void }) {
+function CompareView({ strategyA, strategyB, onClose }: { strategyA: { form: FormState; result: GeneratedStrategy }; strategyB: { form: FormState; result: GeneratedStrategy }; onClose: () => void }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
