@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { INDUSTRIES } from "@/data/tactics"
 import { Channel } from "@/types"
-import { generateGrowthStrategy, regenerateStage, generateSWOT } from "@/ai/strategy-engine"
+import { generateGrowthStrategy, regenerateStage, chatWithStrategy, generateSWOT } from "@/ai/strategy-engine"
 import { useLocalStorage, useFormPersist, useStrategyHistory, useBranding, useDarkMode, FormState } from "@/lib/hooks"
 import { copyStrategyToClipboard, generateShareUrl, parseShareUrl, exportPDF, channelColors, channelTextColors, clampPriority, downloadJSON, downloadCSV } from "@/lib/utils"
 import {
@@ -334,15 +334,10 @@ export default function Home() {
     setChatHistory((p) => [...p, { role: "user", text: userMsg }])
     setChatLoading(true)
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ strategy: result, form, message: userMsg }),
-      })
-      const data = await res.json()
-      setChatHistory((p) => [...p, { role: "ai", text: data.reply || data.error || "No response" }])
+      const reply = await chatWithStrategy(result, form, userMsg)
+      setChatHistory((p) => [...p, { role: "ai", text: reply }])
     } catch (e: any) {
-      setChatHistory((p) => [...p, { role: "ai", text: `Error: ${e.message || "Connection failed"}` }])
+      setChatHistory((p) => [...p, { role: "ai", text: `Error: ${e.message || "Could not process request"}` }])
     } finally { setChatLoading(false) }
   }
 
