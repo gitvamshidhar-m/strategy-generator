@@ -1,10 +1,12 @@
 "use server"
 
+import { StrategyInput, GeneratedStrategy, FunnelStage, FunnelTactic, FormState, BudgetOptimization, SWOTAnalysis } from "@/types"
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 
 async function groqChat(system: string, user: string, temp = 0.7, jsonMode = true): Promise<string> {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY environment variable is not set")
-  const body: any = { model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: temp }
+  const body: { model: string; messages: { role: string; content: string }[]; temperature: number; response_format?: { type: string } } = { model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: temp }
   if (jsonMode) body.response_format = { type: "json_object" }
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -14,61 +16,6 @@ async function groqChat(system: string, user: string, temp = 0.7, jsonMode = tru
   if (!res.ok) throw new Error(`Groq API error: ${res.status} ${await res.text()}`)
   const data = await res.json()
   return data.choices[0].message.content
-}
-
-export interface StrategyInput {
-  industry: string
-  currentChannels: string[]
-  monthlyBudget: number
-  primaryGoal: string
-  targetAudience?: string
-  businessStage?: string
-  teamSize?: string
-  targetCPA?: number
-  targetROAS?: number
-  targetConversionRate?: number
-  strategyStyle?: string
-  competitors?: string
-}
-
-export interface FunnelTactic {
-  id: string
-  title: string
-  description: string
-  reasoning: string
-  effort: string
-  impact: string
-  estimatedROI: number
-  channel: string
-  steps?: string[]
-}
-
-export interface FunnelStage {
-  stage: "awareness" | "consideration" | "conversion" | "loyalty"
-  label: string
-  goal: string
-  tactics: FunnelTactic[]
-}
-
-export interface GeneratedStrategy {
-  channels: { channel: string; priority: number; budgetAllocation: number }[]
-  funnel: FunnelStage[]
-  tactics: {
-    id: string
-    title: string
-    description: string
-    reasoning: string
-    effort: string
-    impact: string
-    estimatedROI: number
-    channel: string
-    steps?: string[]
-  }[]
-  timeline: { phases: { name: string; duration: number; tactics: string[] }[] }
-  reasoning: string
-  estimatedROI: number
-  benchmarks?: { metric: string; yourValue: string; industryAvg: string; unit: string }[]
-  channelRoadmap?: { month: number; channels: { name: string; action: string }[] }[]
 }
 
 const tacticFields = `{"id": "STRING", "title": "STRING", "description": "STRING (2-3 sentences)", "reasoning": "STRING", "effort": "LOW|MEDIUM|HIGH", "impact": "LOW|MEDIUM|HIGH", "estimatedROI": NUMBER, "channel": "STRING", "steps": ["Step 1...", "Step 2...", "Step 3..."]}`
@@ -160,17 +107,17 @@ Regenerate stage: ${stageToRegen}`
   return JSON.parse(content)
 }
 
-export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, message: string): Promise<string> {
+export async function chatWithStrategy(strategy: GeneratedStrategy, form: FormState, message: string): Promise<string> {
   try {
-    const details = (strategy.funnel || []).map((s: any) =>
-      `${s.label}: ${(s.tactics || []).map((t: any) => t.title).join(", ")}`
+    const details = strategy.funnel.map((s) =>
+      `${s.label}: ${s.tactics.map((t) => t.title).join(", ")}`
     ).join("\n")
 
     const system = `You are a strategy consultant. The user has a marketing strategy and is asking about it.
   Return ONLY valid JSON with one field "reply" containing your answer (2-3 sentences).`
 
     const user = `Strategy for ${form.industry} ($${form.budget}/mo, ${form.goal})
-  Channels: ${(strategy.channels || []).map((c: any) => `${c.channel} ${c.budgetAllocation}%`).join(", ")}
+  Channels: ${strategy.channels.map((c) => `${c.channel} ${c.budgetAllocation}%`).join(", ")}
   ${details}
 
   User question: ${message}`
@@ -178,12 +125,13 @@ export async function chatWithStrategy(strategy: GeneratedStrategy, form: any, m
     const content = await groqChat(system, user, 0.5)
     const parsed = JSON.parse(content)
     return parsed.reply || parsed.response || content
-  } catch (err: any) {
-    return `⚠️ ${err.message || "Request failed"}. Please try a simpler question.`
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Request failed"
+    return `⚠️ ${message}. Please try a simpler question.`
   }
 }
 
-export async function optimizeBudget(strategy: GeneratedStrategy, form: any): Promise<{ channel: string; budgetAllocation: number; reasoning: string }[]> {
+export async function optimizeBudget(strategy: GeneratedStrategy, form: FormState): Promise<BudgetOptimization[]> {
   const system = `You are a budget optimization expert. Given a marketing strategy's current budget allocation, suggest a better allocation that maximizes ROI.
 Return ONLY valid JSON with this structure:
 {
@@ -194,7 +142,7 @@ Return ONLY valid JSON with this structure:
 Total must add up to 100%. Keep the same channels, just reallocate percentages.`
 
   const user = `Industry: ${form.industry}
-Current channels: ${(strategy.channels || []).map((c: any) => `${c.channel}: ${c.budgetAllocation}%`).join(", ")}
+Current channels: ${strategy.channels.map((c) => `${c.channel}: ${c.budgetAllocation}%`).join(", ")}
 Budget: $${form.budget}/mo
 Goal: ${form.goal}
 Strategy style: ${form.strategyStyle || "balanced"}
@@ -209,7 +157,7 @@ Suggest optimized budget allocation with reasoning.`
   return parsed.optimizations || parsed
 }
 
-export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<{ strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] }> {
+export async function generateSWOT(industry: string, competitors: string, strategy: GeneratedStrategy): Promise<SWOTAnalysis> {
   const system = `You are a strategy analyst. Given a strategy and competitor info, generate a SWOT analysis. Return ONLY valid JSON:
 {
   "strengths": ["STRING", ...],
@@ -219,7 +167,7 @@ export async function generateSWOT(industry: string, competitors: string, strate
 }`
   const user = `Industry: ${industry}
 Competitors: ${competitors}
-Strategy channels: ${strategy.channels?.map((c: any) => c.channel).join(", ") || "N/A"}
+Strategy channels: ${strategy.channels.map((c) => c.channel).join(", ") || "N/A"}
 Total budget allocation tactics.`
   const content = await groqChat(system, user, 0.5)
   return JSON.parse(content)

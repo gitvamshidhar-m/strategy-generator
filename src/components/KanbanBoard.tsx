@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { funnelMeta, ImpactBadge, EffortBadge } from "./ui"
+import { FunnelTactic, FunnelStage } from "@/types"
 
 interface KanbanBoardProps {
-  tactics: any[]
-  funnel: any[]
+  tactics: FunnelTactic[]
+  funnel: FunnelStage[]
   tacticStatus: Record<string, string>
   searchQuery: string
   filterChannel: string
@@ -53,7 +54,7 @@ export default function KanbanBoard({ tactics, funnel, tacticStatus, searchQuery
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {columns.map((col) => {
           const isOver = dragOverCol === col.status
-          const columnTactics = (tactics || []).filter((t: any) => {
+          const columnTactics = tactics.filter((t) => {
             const st = tacticStatus[t.id] || "todo"
             if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false
             if (filterChannel && (t.channel || "").toUpperCase() !== filterChannel.toUpperCase()) return false
@@ -79,8 +80,8 @@ export default function KanbanBoard({ tactics, funnel, tacticStatus, searchQuery
                     {isOver ? "Drop here" : "No tactics"}
                   </div>
                 )}
-                {columnTactics.map((t: any) => {
-                  const stageMeta = funnelMeta[funnel?.find((s: any) => s.tactics?.some((st: any) => st.id === t.id))?.stage || ""] || {}
+                {columnTactics.map((t) => {
+                  const stageMeta = funnelMeta[funnel?.find((s) => s.tactics?.some((st) => st.id === t.id))?.stage || ""] || {}
                   return (
                     <div
                       key={t.id}

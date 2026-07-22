@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
+import { FormState, BrandingConfig, GeneratedStrategy } from "@/types"
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   const [stored, setStored] = useState<T>(initialValue)
@@ -19,11 +20,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
   return [stored, setValue]
 }
 
-export interface FormState {
-  industry: string; budget: number; goal: string; selectedChannels: string[]
-  targetCPA?: number; targetROAS?: number; targetConversionRate?: number
-  strategyStyle?: string; competitors?: string; clientName?: string
-}
 const defaultForm: FormState = { industry: "saas", budget: 10000, goal: "growth", selectedChannels: [] }
 
 export function useFormPersist(): [FormState, (updates: Partial<FormState>) => void] {
@@ -35,12 +31,12 @@ export function useFormPersist(): [FormState, (updates: Partial<FormState>) => v
 }
 
 export interface SavedStrategy {
-  id: string; name: string; date: string; form: FormState; result: any
+  id: string; name: string; date: string; form: FormState; result: GeneratedStrategy
 }
 
 export function useStrategyHistory() {
   const [history, setHistory] = useLocalStorage<SavedStrategy[]>("strategy-history", [])
-  const save = useCallback((form: FormState, result: any) => {
+  const save = useCallback((form: FormState, result: GeneratedStrategy) => {
     const entry: SavedStrategy = {
       id: Date.now().toString(36),
       name: form.clientName ? `${form.clientName} — ${form.industry}` : `${form.industry} - ${new Date().toLocaleDateString()}`,
@@ -58,9 +54,6 @@ export function useStrategyHistory() {
   return { history, save, remove, rename }
 }
 
-export interface BrandingConfig {
-  companyName: string; accentColor: string; showBranding: boolean
-}
 const defaultBranding: BrandingConfig = { companyName: "", accentColor: "#2563eb", showBranding: false }
 export function useBranding() {
   return useLocalStorage<BrandingConfig>("strategy-branding", defaultBranding)

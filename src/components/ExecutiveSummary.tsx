@@ -1,19 +1,21 @@
 "use client"
 
+import { GeneratedStrategy, FormState, FunnelTactic, ChannelAllocation } from "@/types"
+
 interface ExecutiveSummaryProps {
-  result: any
-  form: any
+  result: GeneratedStrategy
+  form: FormState
   countByStatus: (status: string) => number
   totalTactics: number
 }
 
 export default function ExecutiveSummary({ result, form, countByStatus, totalTactics }: ExecutiveSummaryProps) {
-  const topChannel = result.channels?.slice().sort((a: any, b: any) => b.priority - a.priority)[0]
-  const topTactic = result.tactics?.slice().sort((a: any, b: any) => (b.estimatedROI || 0) - (a.estimatedROI || 0))[0]
-  const quickWins = result.tactics?.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH" && (t.effort || "").toUpperCase() === "LOW") || []
-  const avgROI = result.tactics?.length ? result.tactics.reduce((s: number, t: any) => s + (t.estimatedROI || 0), 0) / result.tactics.length : 0
+  const topChannel = result.channels?.slice().sort((a, b) => b.priority - a.priority)[0]
+  const topTactic = result.tactics?.slice().sort((a, b) => (b.estimatedROI || 0) - (a.estimatedROI || 0))[0]
+  const quickWins = result.tactics?.filter((t) => (t.impact || "").toUpperCase() === "HIGH" && (t.effort || "").toUpperCase() === "LOW") || []
+  const avgROI = result.tactics?.length ? result.tactics.reduce((s, t) => s + (t.estimatedROI || 0), 0) / result.tactics.length : 0
   const channelScore = Math.min((result.channels?.length || 0) * 6, 25)
-  const highImpactRatio = result.tactics?.length ? result.tactics.filter((t: any) => (t.impact || "").toUpperCase() === "HIGH").length / result.tactics.length : 0
+  const highImpactRatio = result.tactics?.length ? result.tactics.filter((t) => (t.impact || "").toUpperCase() === "HIGH").length / result.tactics.length : 0
   const impactScore = highImpactRatio * 25
   const roiScore = Math.min((result.estimatedROI || 0) / 20, 25)
   const quickWinBonus = Math.min(quickWins.length * 3, 25)

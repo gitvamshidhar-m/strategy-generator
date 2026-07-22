@@ -1,14 +1,16 @@
 "use client"
 
-export function copyStrategyToClipboard(result: any, form: { industry: string; budget: number; goal: string }): string {
+import { GeneratedStrategy, FormState, FunnelStage, FunnelTactic, ChannelAllocation, Benchmark, BrandingConfig } from "@/types"
+
+export function copyStrategyToClipboard(result: GeneratedStrategy, form: FormState): string {
   const lines = [
     `Growth Strategy for ${form.industry} ($${(form.budget || 0).toLocaleString()}/mo)`,
     `Goal: ${form.goal}`,
     `Est. ROI: ${result.estimatedROI?.toFixed(1)}%`,
     "",
-    ...(result.funnel || []).flatMap((stage: any) => [
-      `[${stage.stage?.toUpperCase()}] ${stage.label || ""}`,
-      ...(stage.tactics || []).map((t: any) => `  - ${t.title}: ${t.description}`),
+    ...result.funnel.flatMap((stage) => [
+      `[${stage.stage.toUpperCase()}] ${stage.label}`,
+      ...stage.tactics.map((t) => `  - ${t.title}: ${t.description}`),
       "",
     ]),
     `Generated via AI Strategy Generator`,
@@ -17,7 +19,7 @@ export function copyStrategyToClipboard(result: any, form: { industry: string; b
   return lines
 }
 
-export function generateShareUrl(result: any, form: { industry: string; budget: number; goal: string }): string {
+export function generateShareUrl(result: GeneratedStrategy, form: FormState): string {
   const payload = { result, form }
   try {
     const encoded = btoa(encodeURIComponent(JSON.stringify(payload)))
@@ -27,7 +29,7 @@ export function generateShareUrl(result: any, form: { industry: string; budget: 
   }
 }
 
-export function parseShareUrl(): { result: any; form: any } | null {
+export function parseShareUrl(): { result: GeneratedStrategy; form: FormState } | null {
   try {
     const params = new URLSearchParams(window.location.search)
     const encoded = params.get("share")
@@ -36,20 +38,20 @@ export function parseShareUrl(): { result: any; form: any } | null {
   } catch { return null }
 }
 
-export function exportPDF(result: any, form: any, branding?: any) {
+export function exportPDF(result: GeneratedStrategy, form: FormState, branding?: BrandingConfig) {
   const win = window.open("", "_blank")
   if (!win) { window.print(); return }
   const fmt = (v: string, u: string) => {
     const has = v?.includes("$") || v?.includes("%"); const clean = (v || "").replace(/[$%]/g, "")
     return has ? v : u === "$" ? `$${clean}` : `${clean}${u}`
   }
-  const channelRow = (ch: any, i: number) =>
+  const channelRow = (ch: ChannelAllocation, i: number) =>
     `<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px">${ch.channel}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right">${ch.priority}/5</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right"><div style="background:#e5e7eb;border-radius:4px;height:16px;overflow:hidden"><div style="background:#2563eb;height:16px;width:${ch.budgetAllocation}%;border-radius:4px"></div></div><span style="font-size:11px;color:#6b7280">${ch.budgetAllocation}%</span></td></tr>`
-  const stageSection = (stage: any) => `
+  const stageSection = (stage: FunnelStage) => `
     <div style="margin-bottom:24px">
       <h3 style="font-size:16px;font-weight:700;margin:0 0 4px;color:#1f2937">${stage.label}</h3>
       <p style="font-size:12px;color:#6b7280;margin:0 0 12px;font-style:italic">${stage.goal}</p>
-      ${(stage.tactics || []).map((t: any, i: number) => {
+      ${stage.tactics.map((t, i) => {
         const imp = (t.impact || "").toUpperCase()
         const borderColor = imp === "HIGH" ? "#22c55e" : imp === "MEDIUM" ? "#f59e0b" : "#9ca3af"
         return `<div style="border-left:4px solid ${borderColor};padding:12px 16px;margin-bottom:8px;background:#f9fafb;border-radius:4px">
@@ -60,7 +62,7 @@ export function exportPDF(result: any, form: any, branding?: any) {
           <p style="font-size:12px;color:#6b7280;margin:0 0 4px;line-height:1.5">${t.description}</p>
           <p style="font-size:11px;color:#2563eb;margin:0;font-style:italic">Why it works: ${t.reasoning}</p>
           ${t.channel ? `<p style="font-size:11px;color:#6b7280;margin:4px 0 0">Channel: ${t.channel}${t.estimatedROI ? ` | Est. ROI: ${t.estimatedROI.toFixed(1)}%` : ""}</p>` : ""}
-          ${t.steps?.length ? `<ol style="font-size:11px;color:#6b7280;margin:4px 0 0;padding-left:16px">${t.steps.map((s: string) => `<li style="margin:2px 0">${s}</li>`).join("")}</ol>` : ""}
+          ${t.steps?.length ? `<ol style="font-size:11px;color:#6b7280;margin:4px 0 0;padding-left:16px">${t.steps.map((s) => `<li style="margin:2px 0">${s}</li>`).join("")}</ol>` : ""}
         </div>`
       }).join("")}
     </div>`
@@ -85,10 +87,10 @@ export function exportPDF(result: any, form: any, branding?: any) {
   </div>
   <div style="margin-bottom:24px">
     <h2 style="font-size:18px;font-weight:700;margin:0 0 12px;color:#1f2937">Channel Budget Allocation</h2>
-    <table>${["<thead><tr><th style='text-align:left;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Channel</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Priority</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Allocation</th></tr></thead>", "<tbody>", ...result.channels?.map((c: any, i: number) => channelRow(c, i)), "</tbody>"].filter(Boolean).join("")}</table>
+    <table>${["<thead><tr><th style='text-align:left;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Channel</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Priority</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Allocation</th></tr></thead>", "<tbody>", ...result.channels.map((c, i) => channelRow(c, i)), "</tbody>"].filter(Boolean).join("")}</table>
   </div>
-  ${(result.funnel || []).map(stageSection).join("<hr style='border:none;border-top:1px solid #e5e7eb;margin:16px 0'>")}
-  ${result.benchmarks?.length ? `<div style="margin-bottom:24px"><h2 style="font-size:18px;font-weight:700;margin:0 0 12px;color:#1f2937">Benchmarks</h2><table>${["<thead><tr><th style='text-align:left;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Metric</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Your Value</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Industry Avg</th></tr></thead>", "<tbody>", ...result.benchmarks.map((b: any) => `<tr><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px'>${b.metric}</td><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:600;color:#16a34a'>${fmt(b.yourValue, b.unit)}</td><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;color:#6b7280'>${fmt(b.industryAvg, b.unit)}</td></tr>`), "</tbody>"].filter(Boolean).join("")}</table></div>` : ""}
+  ${result.funnel.map(stageSection).join("<hr style='border:none;border-top:1px solid #e5e7eb;margin:16px 0'>")}
+  ${result.benchmarks?.length ? `<div style="margin-bottom:24px"><h2 style="font-size:18px;font-weight:700;margin:0 0 12px;color:#1f2937">Benchmarks</h2><table>${["<thead><tr><th style='text-align:left;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Metric</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Your Value</th><th style='text-align:right;padding:6px 8px;font-size:12px;color:#6b7280;border-bottom:2px solid #e5e7eb'>Industry Avg</th></tr></thead>", "<tbody>", ...result.benchmarks.map((b) => `<tr><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px'>${b.metric}</td><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:600;color:#16a34a'>${fmt(b.yourValue, b.unit)}</td><td style='padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;color:#6b7280'>${fmt(b.industryAvg, b.unit)}</td></tr>`), "</tbody>"].filter(Boolean).join("")}</table></div>` : ""}
   <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af">
     <p style="margin:0">Generated with AI Strategy Generator</p>
   </div>
@@ -105,7 +107,7 @@ export function clampPriority(p: number): number {
   return Math.min(Math.max(p, 0), 5)
 }
 
-export function downloadJSON(result: any, form: any) {
+export function downloadJSON(result: GeneratedStrategy, form: FormState) {
   const blob = new Blob([JSON.stringify({ form, result, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
@@ -113,10 +115,10 @@ export function downloadJSON(result: any, form: any) {
   a.click(); URL.revokeObjectURL(url)
 }
 
-export function downloadCSV(result: any, form: any) {
+export function downloadCSV(result: GeneratedStrategy, form: FormState) {
   const rows = [["Stage", "Tactic", "Description", "Channel", "Impact", "Effort", "Est. ROI", "Steps"]]
-  ;(result.funnel || []).forEach((stage: any) =>
-    (stage.tactics || []).forEach((t: any) =>
+  result.funnel.forEach((stage) =>
+    stage.tactics.forEach((t) =>
       rows.push([stage.label, t.title, `"${(t.description || "").replace(/"/g, '""')}"`, t.channel || "", t.impact || "", t.effort || "", t.estimatedROI?.toString() || "", `"${(t.steps || []).join("; ").replace(/"/g, '""')}"`])
     )
   )
