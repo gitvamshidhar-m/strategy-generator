@@ -1227,8 +1227,8 @@ export default function Home() {
           <p className="text-center text-gray-400 dark:text-gray-600 text-xs mt-8">Built with Next.js</p>
         </div>
       </div>
-      {showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onClose={() => setShowHistory(false)} />}
-      {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />}
+{showHistory && <HistoryPanel history={history} onLoad={loadFromHistory} onCompare={startCompare} onRemove={removeHistory} onRename={renameHistory} onClose={() => setShowHistory(false)} />}
+      {showSettings && <SettingsPanel branding={branding} setBranding={setBranding} apiKey={apiKey} setApiKey={setApiKey} onClose={() => setShowSettings(false)} />
     </>
   )
 }
